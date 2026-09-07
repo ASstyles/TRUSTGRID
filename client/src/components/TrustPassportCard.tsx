@@ -45,7 +45,7 @@ export const TrustPassportCard: React.FC<TrustPassportCardProps> = ({ initialDid
             <span>Verifiable Trust Passport</span>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Decentralized identity claims with zero-knowledge & selective disclosure architecture.
+            Decentralized identity claims with privacy-aware selective disclosure architecture.
           </p>
         </div>
 

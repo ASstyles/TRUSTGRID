@@ -12,6 +12,18 @@ class DatabaseService {
     constructor(dbPath) {
         const resolvedPath = dbPath || process.env.DATABASE_FILE || node_path_1.default.resolve(process.cwd(), 'trustgrid.db');
         this.db = new node_sqlite_1.DatabaseSync(resolvedPath);
+        if (resolvedPath !== ':memory:') {
+            try {
+                this.db.exec(`
+          PRAGMA journal_mode = WAL;
+          PRAGMA busy_timeout = 5000;
+          PRAGMA synchronous = NORMAL;
+        `);
+            }
+            catch {
+                // Ignore if pragma unsupported
+            }
+        }
         this.initSchema();
     }
     static getInstance(dbPath) {
@@ -73,6 +85,17 @@ class DatabaseService {
           revoked_at TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_identities_controller ON identities(controller_did);
+
+      -- Encrypted Wallet Keystores (Off-Chain Private Key Store)
+      CREATE TABLE IF NOT EXISTS wallet_keystores (
+          did TEXT PRIMARY KEY,
+          public_key TEXT NOT NULL,
+          key_type TEXT DEFAULT 'Ed25519VerificationKey2020',
+          encrypted_keystore TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_keystores_did ON wallet_keystores(did);
 
       -- Trust Objects (TOP core)
       CREATE TABLE IF NOT EXISTS trust_objects (

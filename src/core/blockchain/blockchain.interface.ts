@@ -20,7 +20,7 @@ export interface BlockchainTransaction {
   txId: string;
   blockHeight: number;
   blockHash?: string;
-  actionType: 'REGISTER_PROOF' | 'RECORD_PROVENANCE' | 'REVOKE_PROOF' | 'UPDATE_STATUS';
+  actionType: 'REGISTER_PROOF' | 'RECORD_PROVENANCE' | 'REVOKE_PROOF' | 'UPDATE_STATUS' | 'SECURITY_ALERT';
   trustObjectId: string;
   contentHash: string;
   signerDid: string;
@@ -58,6 +58,22 @@ export interface BlockchainAdapter {
   }): Promise<BlockchainProof>;
 
   addProvenanceEvent(event: ProvenanceEvent): Promise<{
+    txId: string;
+    blockHeight: number;
+    blockHash: string;
+  }>;
+
+  recordSecurityEvent(params: {
+    eventId: string;
+    trustObjectId: string;
+    deviceId: string;
+    eventType: string;
+    severity: string;
+    expectedHash: string;
+    observedHash: string;
+    description: string;
+    reporterDid: string;
+  }): Promise<{
     txId: string;
     blockHeight: number;
     blockHash: string;

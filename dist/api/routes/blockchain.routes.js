@@ -12,6 +12,9 @@ function createBlockchainRoutes(blockchain, db) {
             const txCountRow = db.getOne('SELECT COUNT(*) as count FROM blockchain_transactions');
             res.json({
                 success: true,
+                valid: integrity.valid,
+                blockCount: blocks.length,
+                transactionCount: txCountRow?.count || 0,
                 networkType: blockchain.networkType,
                 networkName: blockchain.name,
                 architectureNote: 'MVP operates an in-process consortium-style cryptographic ledger. Production targets Hyperledger Fabric with zero protocol changes.',

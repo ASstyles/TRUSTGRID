@@ -11,6 +11,7 @@ const node_fs_1 = __importDefault(require("node:fs"));
 const db_service_js_1 = require("./database/db.service.js");
 const consortium_blockchain_adapter_js_1 = require("./core/blockchain/consortium-blockchain.adapter.js");
 const did_service_js_1 = require("./core/identity/did.service.js");
+const wallet_service_js_1 = require("./core/identity/wallet.service.js");
 const trust_object_service_js_1 = require("./core/trust-object/trust-object.service.js");
 const provenance_service_js_1 = require("./core/provenance/provenance.service.js");
 const revocation_service_js_1 = require("./core/revocation/revocation.service.js");
@@ -51,7 +52,7 @@ function createApp() {
     const eduModule = new education_module_js_1.EducationModule(trustObjectService, db);
     const scModule = new supply_chain_module_js_1.SupplyChainModule(trustObjectService, provenanceService);
     const legalModule = new legal_module_js_1.LegalEvidenceModule(trustObjectService, provenanceService);
-    const secModule = new cybersecurity_module_js_1.CybersecurityModule(trustObjectService, db);
+    const secModule = new cybersecurity_module_js_1.CybersecurityModule(trustObjectService, blockchain, db);
     // Global Middlewares
     app.use((0, cors_1.default)());
     app.use(express_1.default.json({ limit: '10mb' }));
@@ -79,16 +80,58 @@ function createApp() {
         }
         next();
     });
-    // Health check
-    app.get('/health', (_req, res) => {
-        res.json({
-            status: 'UP',
-            service: 'TRUSTGRID Trust Infrastructure',
-            protocol: 'TOP (Trust Object Protocol) v1.0',
-            network: 'Consortium Notary Ledger (Local MVP) / Production Hyperledger Fabric Ready',
-            timestamp: new Date().toISOString(),
-        });
-    });
+    // Comprehensive System Health Check (addresses SIH requirement #24)
+    const healthHandler = async (_req, res) => {
+        try {
+            // 1. Database check
+            const dbCheck = db.getOne('SELECT 1 as ok');
+            const dbStatus = dbCheck?.ok === 1 ? 'ok' : 'error';
+            // 2. Blockchain check & ledger integrity
+            const ledgerIntegrity = await blockchain.verifyLedgerIntegrity();
+            const blockchainStatus = 'ok';
+            // 3. Identity & Key store check
+            const notaryKey = wallet_service_js_1.WalletService.getKeyPair('did:trustgrid:sys:consortium-notary', db);
+            const identityStoreStatus = notaryKey ? 'ok' : 'uninitialized';
+            // 4. Seed / Demo data readiness check
+            const demoEdu = db.getOne("SELECT COUNT(*) as count FROM trust_objects WHERE trust_object_id = 'TO-EDU-DEGREE-GENUINE-2024'");
+            const demoDataStatus = (demoEdu && demoEdu.count > 0) ? 'ready' : 'unseeded';
+            const allOk = dbStatus === 'ok' && ledgerIntegrity.valid && identityStoreStatus === 'ok';
+            res.status(allOk ? 200 : 503).json({
+                status: allOk ? 'UP' : 'DEGRADED',
+                api: 'ok',
+                database: dbStatus,
+                blockchain: blockchainStatus,
+                ledgerIntegrity: ledgerIntegrity.valid,
+                identityStore: identityStoreStatus,
+                demoData: demoDataStatus,
+                service: 'TRUSTGRID Trust Infrastructure',
+                protocol: 'TOP (Trust Object Protocol) v1.0',
+                network: blockchain.networkType,
+                networkName: blockchain.name,
+                ledgerDetails: {
+                    totalBlocks: ledgerIntegrity.totalBlocks,
+                    verifiedTransactions: ledgerIntegrity.verifiedTxs,
+                    reason: ledgerIntegrity.reason,
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+        catch (err) {
+            res.status(500).json({
+                status: 'DOWN',
+                api: 'error',
+                database: 'error',
+                blockchain: 'error',
+                ledgerIntegrity: false,
+                identityStore: 'error',
+                demoData: 'error',
+                error: err.message,
+                timestamp: new Date().toISOString(),
+            });
+        }
+    };
+    app.get('/health', healthHandler);
+    app.get('/api/health', healthHandler);
     // Mount API Routes
     app.use('/api/demo', (0, demo_routes_js_1.createDemoRoutes)(verificationService, db));
     app.use('/api/verify', (0, verify_routes_js_1.createVerifyRoutes)(verificationService));

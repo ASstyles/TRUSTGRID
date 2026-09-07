@@ -67,6 +67,13 @@ class ProductionBlockchainAdapter {
             blockHash: '0x' + Buffer.from('fabric-block-hash').toString('hex'),
         };
     }
+    async recordSecurityEvent(params) {
+        return {
+            txId: '0x' + Buffer.from('fabric-sec-tx-' + Date.now()).toString('hex'),
+            blockHeight: 14212,
+            blockHash: '0x' + Buffer.from('fabric-sec-block').toString('hex'),
+        };
+    }
     async getProof(trustObjectId) {
         return null;
     }

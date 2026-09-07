@@ -14,7 +14,7 @@ This guide provides the exact step-by-step 3-minute demonstration sequence for h
 3. **State the core problem:**
    > *"Today, universities, pharma supply chains, courts, and cybersecurity SOCs each build isolated, fragmented systems of trust. If an insider or hacker alters a SQL database, the forgery is undetectable."*
 4. **State the innovation:**
-   > *"TRUSTGRID solves this not by building four separate apps, but by inventing a universal Trust Object Protocol (TOP). Blockchain is simply our immutable trust substrate. Sensitive data stays 100% off-chain. Let's see it in action across four sectors right now."*
+   > *"TRUSTGRID solves this not by building four separate apps, but by inventing a universal Trust Object Protocol (TOP). Blockchain provides the tamper-evident trust substrate. Sensitive data stays 100% off-chain. Let's see it in action across four sectors right now."*
 
 ---
 
@@ -27,7 +27,7 @@ This guide provides the exact step-by-step 3-minute demonstration sequence for h
      * *Observed Off-Chain Hash:* `3763738d1d...` (Modified to Rohan Sharma, GPA 9.95)
    * **Audit Check:** `CHK_CONTENT_INTEGRITY` flags `TAMPER DETECTED! Recalculated hash diverges from on-chain anchor.`
    * **Explainable Risk Engine:** Displays **`92/100 — CRITICAL RISK`** with exact explanation:
-     * *Content integrity tamper: Off-chain data content hash does not match immutable on-chain proof.*
+     * *Content integrity tamper: Off-chain data content hash does not match on-chain proof.*
 3. **Key takeaway for judges:**
    > *"Even though the university's database was altered, the blockchain proof immediately caught the bit-flip forgery without needing human inspection."*
 
@@ -47,11 +47,11 @@ This guide provides the exact step-by-step 3-minute demonstration sequence for h
 
 ### Minute 2:00 - 2:30: Scenarios 3 & 4 (Legal Evidence & Cybersecurity)
 1. **Click button 3:** `3. Verify Evidence`
-   * Demonstrates 4K CCTV digital evidence chain of custody from Crime Scene to High Court.
+   * Demonstrates tamper-evident digital forensic evidence chain of custody from Crime Scene to High Court.
    * Modifying video frames instantly fails Section 65B hash validation.
 2. **Click button 4:** `4. Device Compromise`
    * Demonstrates a SCADA power grid router baseline.
-   * Live integrity audit flags unauthorized backdoor injected into firewall rules, triggering an immutable security incident on the ledger.
+   * Live integrity audit flags unauthorized backdoor injected into firewall rules, triggering an on-chain anchored security incident on the ledger, returning **`DEVICE_INTEGRITY_COMPROMISED`**.
 3. **Key takeaway for judges:**
    > *"Notice that all four use cases used the exact same verification engine."*
 
@@ -67,7 +67,7 @@ This guide provides the exact step-by-step 3-minute demonstration sequence for h
    * Show real blocks, Merkle roots, and explain the architecture:
      > *"For this MVP, we built a local consortium notary ledger with real Merkle trees and cryptographic block chaining. Because our architecture uses a clean BlockchainAdapter interface, deploying to a multi-organization Hyperledger Fabric network requires zero code changes."*
 4. **Final Closing Line:**
-   > *"One trust protocol. Multiple sectors. Cryptographically verifiable. Tamper-evident. Privacy-aware. Thank you."*
+   > *"One trust protocol. Four sectors. One verification engine."*
 
 ---
 

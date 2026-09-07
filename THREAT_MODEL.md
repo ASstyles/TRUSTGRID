@@ -10,12 +10,12 @@
 * **Attack Vector:** Malicious student creates an unofficial degree document or adds fake records into a local database table.
 * **Prevention:** Verifiers do not rely on local databases. All credentials require an Ed25519 digital signature from the certified university issuer DID.
 * **Detection:** The 7-step verification engine queries the decentralized identity registry; an unrecognized or self-signed key fails `CHK_ED25519_SIGNATURE`.
-* **Recovery:** Forged document is rejected with `INVALID_SIGNATURE`. An immutable audit log records the verifier attempt and IP address.
+* **Recovery:** Forged document is rejected with `INVALID_SIGNATURE`. An append-only audit log records the verifier attempt and IP address.
 
 ### Threat 2: Document & Metadata Tampering (Off-chain bit-flip)
 * **Attack Vector:** An insider updates a legitimate student's name from "Rahul" to "Rohan" or alters a CGPA from 7.1 to 9.9 in the off-chain SQL database.
-* **Prevention:** The canonical SHA-256 hash of all immutable attributes was computed at creation time and anchored to the blockchain ledger.
-* **Detection:** When the document is verified, the engine recalculates the canonical hash. The recalculated hash diverges from the immutable on-chain proof, immediately flagging `TAMPERED`.
+* **Prevention:** The canonical SHA-256 hash of all certified attributes was computed at creation time and anchored to the blockchain ledger.
+* **Detection:** When the document is verified, the engine recalculates the canonical hash. The recalculated hash diverges from the on-chain proof, immediately flagging `TAMPERED`.
 * **Recovery:** Verification center renders red `INTEGRITY FAILURE` banner, displays side-by-side hash mismatch, and flags risk score to 92/100 (CRITICAL).
 
 ### Threat 3: Replay Attacks (Re-submitting old proofs)

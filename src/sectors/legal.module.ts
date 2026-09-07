@@ -17,7 +17,7 @@ export interface ForensicEvidenceMetadata {
 export class LegalEvidenceModule implements SectorModule {
   public readonly name = 'Legal & Digital Forensic Chain of Custody';
   public readonly sectorId = 'LEGAL' as const;
-  public readonly description = 'Tamper-evident chain of custody for digital evidence admissible in judicial proceedings';
+  public readonly description = 'Tamper-evident chain of custody for digital forensic evidence';
   public readonly supportedObjectTypes = ['EVIDENCE' as const];
 
   private trustObjectService: TrustObjectService;
@@ -64,7 +64,7 @@ export class LegalEvidenceModule implements SectorModule {
   public generateVerificationSummary(result: VerificationResult) {
     const isAuthentic = result.overallStatus === 'AUTHENTIC';
     return {
-      headline: isAuthentic ? 'Court-Admissible Evidence Integrity Verified' : 'EVIDENCE INTEGRITY FAILURE',
+      headline: isAuthentic ? 'Digital Forensic Evidence Integrity Verified' : 'EVIDENCE INTEGRITY FAILURE',
       badges: [
         isAuthentic ? 'EVIDENCE_AUTHENTIC' : 'SPOLIATION_DETECTED',
         result.provenanceStatus.isValid ? 'CUSTODY_UNCOMPROMISED' : 'CHAIN_OF_CUSTODY_BROKEN',

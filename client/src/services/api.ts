@@ -1,7 +1,7 @@
 const API_BASE = '/api';
 
 export interface VerificationResult {
-  overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH';
+  overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED';
   trustScore: number;
   trustObjectId: string;
   objectType: string;
@@ -209,6 +209,12 @@ export const api = {
   // Identities
   getIdentities: async () => {
     const res = await fetch(`${API_BASE}/identities`);
+    return res.json();
+  },
+
+  // System Health
+  getHealth: async () => {
+    const res = await fetch(`${API_BASE}/health`);
     return res.json();
   },
 };

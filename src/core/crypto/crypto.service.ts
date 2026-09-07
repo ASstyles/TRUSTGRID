@@ -9,6 +9,7 @@ export interface EncryptedKeystore {
   ciphertext: string;
   iv: string;
   tag: string;
+  salt?: string;
   algorithm: 'aes-256-gcm';
 }
 
@@ -60,6 +61,29 @@ export class CryptoService {
   }
 
   /**
+   * Deterministically derives an Ed25519 keypair from a seed string.
+   * Ensures identical identities produce the exact same keypair across environments.
+   */
+  public static generateDeterministicEd25519KeyPair(seedInput: string): KeyPair {
+    const seed = crypto.createHash('sha256').update(seedInput).digest();
+    // Ed25519 PKCS#8 DER header prefix for 32-byte raw seed:
+    const pkcs8Der = Buffer.concat([
+      Buffer.from('302e020100300506032b657004220420', 'hex'),
+      seed,
+    ]);
+    const privateKeyObj = crypto.createPrivateKey({
+      key: pkcs8Der,
+      format: 'der',
+      type: 'pkcs8',
+    });
+    const publicKeyObj = crypto.createPublicKey(privateKeyObj);
+    return {
+      privateKey: privateKeyObj.export({ type: 'pkcs8', format: 'pem' }) as string,
+      publicKey: publicKeyObj.export({ type: 'spki', format: 'pem' }) as string,
+    };
+  }
+
+  /**
    * Signs arbitrary string or buffer using an Ed25519 private key.
    * Returns base64 signature.
    */
@@ -83,10 +107,11 @@ export class CryptoService {
   }
 
   /**
-   * Encrypts private key using AES-256-GCM and a passphrase.
+   * Encrypts private key using AES-256-GCM, unique random salt, unique random IV, and an authentication tag.
    */
-  public static encryptPrivateKey(privateKey: string, secretPassphrase: string): EncryptedKeystore {
-    const key = crypto.scryptSync(secretPassphrase, 'trustgrid-salt', 32);
+  public static encryptPrivateKey(privateKey: string, secretPassphrase: string, customSalt?: string): EncryptedKeystore {
+    const salt = customSalt || crypto.randomBytes(16).toString('hex');
+    const key = crypto.scryptSync(secretPassphrase, salt, 32);
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     
@@ -98,6 +123,7 @@ export class CryptoService {
       ciphertext: encrypted,
       iv: iv.toString('hex'),
       tag,
+      salt,
       algorithm: 'aes-256-gcm',
     };
   }
@@ -106,7 +132,8 @@ export class CryptoService {
    * Decrypts private key from an EncryptedKeystore
    */
   public static decryptPrivateKey(keystore: EncryptedKeystore, secretPassphrase: string): string {
-    const key = crypto.scryptSync(secretPassphrase, 'trustgrid-salt', 32);
+    const salt = keystore.salt || 'trustgrid-salt';
+    const key = crypto.scryptSync(secretPassphrase, salt, 32);
     const decipher = crypto.createDecipheriv(
       'aes-256-gcm',
       key,

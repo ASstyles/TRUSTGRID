@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerificationService = void 0;
+const node_crypto_1 = __importDefault(require("node:crypto"));
 const db_service_js_1 = require("../../database/db.service.js");
 const crypto_service_js_1 = require("../crypto/crypto.service.js");
 const did_service_js_1 = require("../identity/did.service.js");
@@ -33,34 +37,32 @@ class VerificationService {
             throw new Error(`Trust Object not found: ${params.trustObjectId}`);
         }
         const metadataToVerify = params.presentedMetadata || trustObject.metadata;
-        // STEP 1: Issuer Identity & Public Key Resolution
+        // STEP 1: Subject Identity & DID Format Verification
+        const subjectDidValid = typeof trustObject.subjectId === 'string' && trustObject.subjectId.startsWith('did:trustgrid:');
+        checks.push({
+            code: 'CHK_SUBJECT_IDENTITY',
+            name: 'Subject Decentralized Identity (DID) Verification',
+            passed: subjectDidValid,
+            details: subjectDidValid
+                ? `Subject DID ${trustObject.subjectId} adheres to W3C Decentralized Identifier standards`
+                : `Subject DID format invalid: ${trustObject.subjectId}`,
+            timestamp,
+        });
+        // STEP 2: Issuer Identity & Public Key Resolution
         const issuerPubKey = this.didService.getPublicKey(trustObject.issuerId);
         const issuerIdentityValid = !!issuerPubKey;
         checks.push({
             code: 'CHK_ISSUER_IDENTITY',
-            name: 'Issuer Decentralized Identity (DID) Verification',
+            name: 'Issuer Decentralized Identity (DID) Resolution',
             passed: issuerIdentityValid,
             details: issuerIdentityValid
                 ? `Issuer DID ${trustObject.issuerId} resolved with active Ed25519 verification key`
                 : `Failed to resolve active verification key for issuer DID ${trustObject.issuerId}`,
             timestamp,
         });
-        // STEP 2: Canonical Hash Recalculation
-        const contentToHash = {
-            trustObjectId: trustObject.trustObjectId,
-            objectType: trustObject.objectType,
-            subjectId: trustObject.subjectId,
-            issuerId: trustObject.issuerId,
-            createdAt: trustObject.createdAt,
-            expiresAt: trustObject.expiresAt || null,
-            metadata: metadataToVerify,
-        };
-        const canonicalHash = crypto_service_js_1.CryptoService.hashObject(contentToHash);
-        const presentedHash = canonicalHash;
         // STEP 3: Cryptographic Signature Verification
         let signatureValid = false;
         if (issuerPubKey) {
-            // Signature was produced over the original contentHash at issuance time
             signatureValid = crypto_service_js_1.CryptoService.verify(trustObject.contentHash, trustObject.signature, issuerPubKey);
         }
         checks.push({
@@ -72,7 +74,18 @@ class VerificationService {
                 : `Cryptographic signature verification failed or issuer key is missing`,
             timestamp,
         });
-        // STEP 4: Blockchain Ledger Proof Anchor Verification
+        // STEP 4: Canonical Content Hash Recalculation & Integrity Comparison (Anti-Tampering)
+        const contentToHash = {
+            trustObjectId: trustObject.trustObjectId,
+            objectType: trustObject.objectType,
+            subjectId: trustObject.subjectId,
+            issuerId: trustObject.issuerId,
+            createdAt: trustObject.createdAt,
+            expiresAt: trustObject.expiresAt || null,
+            metadata: metadataToVerify,
+        };
+        const canonicalHash = crypto_service_js_1.CryptoService.hashObject(contentToHash);
+        const presentedHash = canonicalHash;
         const blockchainProof = await this.blockchain.getProof(params.trustObjectId);
         let blockchainProofValid = false;
         let onChainHash = '';
@@ -81,16 +94,6 @@ class VerificationService {
             const verifyProofResult = await this.blockchain.verifyProof(params.trustObjectId, blockchainProof.contentHash);
             blockchainProofValid = verifyProofResult.valid;
         }
-        checks.push({
-            code: 'CHK_BLOCKCHAIN_ANCHOR',
-            name: 'Blockchain Trust Ledger Proof & Merkle Anchor',
-            passed: blockchainProofValid,
-            details: blockchainProofValid
-                ? `Cryptographic proof verified at Block #${blockchainProof?.blockHeight} (Tx: ${blockchainProof?.txId?.substring(0, 18)}...)`
-                : `Blockchain ledger proof verification failed or proof not anchored`,
-            timestamp,
-        });
-        // STEP 5: Content Hash Integrity Comparison (Anti-Tampering)
         const hashMatch = canonicalHash === onChainHash && canonicalHash === trustObject.contentHash;
         checks.push({
             code: 'CHK_CONTENT_INTEGRITY',
@@ -99,6 +102,16 @@ class VerificationService {
             details: hashMatch
                 ? `Recalculated SHA-256 hash matches immutable on-chain proof exactly: ${canonicalHash.substring(0, 16)}...`
                 : `TAMPER DETECTED! Recalculated hash [${canonicalHash.substring(0, 12)}...] diverges from on-chain anchor [${onChainHash.substring(0, 12)}...]`,
+            timestamp,
+        });
+        // STEP 5: Blockchain Ledger Proof Anchor Verification
+        checks.push({
+            code: 'CHK_BLOCKCHAIN_ANCHOR',
+            name: 'Blockchain Trust Ledger Proof & Merkle Anchor',
+            passed: blockchainProofValid,
+            details: blockchainProofValid
+                ? `Cryptographic proof verified at Block #${blockchainProof?.blockHeight} (Tx: ${blockchainProof?.txId?.substring(0, 18)}...)`
+                : `Blockchain ledger proof verification failed or proof not anchored`,
             timestamp,
         });
         // STEP 6: Revocation & Expiration Status
@@ -134,7 +147,7 @@ class VerificationService {
                 : `Provenance anomaly: ${chainContinuity.reason}`,
             timestamp,
         });
-        // STEP 8: Explainable Trust Risk Assessment
+        // Explainable Trust Risk Assessment
         const riskAssessment = this.riskEngine.assessTrustObjectRisk({
             trustObject,
             verifierDid: params.verifierDid,
@@ -148,7 +161,12 @@ class VerificationService {
         // Determine Overall Status
         let overallStatus = 'AUTHENTIC';
         if (!hashMatch) {
-            overallStatus = 'TAMPERED';
+            if (trustObject.objectType === 'DEVICE') {
+                overallStatus = 'DEVICE_INTEGRITY_COMPROMISED';
+            }
+            else {
+                overallStatus = 'TAMPERED';
+            }
         }
         else if (!signatureValid) {
             overallStatus = 'INVALID_SIGNATURE';
@@ -168,7 +186,7 @@ class VerificationService {
         this.db.run(`INSERT INTO verification_events 
        (id, trust_object_id, verifier_did, result_status, presented_hash, on_chain_hash, signature_valid, blockchain_proof_valid, risk_score, client_ip)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            'VRF-' + Date.now(),
+            `VRF-${Date.now()}-${node_crypto_1.default.randomBytes(4).toString('hex')}`,
             params.trustObjectId,
             params.verifierDid || null,
             overallStatus,

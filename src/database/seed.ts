@@ -28,22 +28,24 @@ export async function seedDatabase(clean: boolean = true) {
       DELETE FROM trust_objects;
       DELETE FROM blockchain_transactions;
       DELETE FROM blockchain_blocks;
+      DELETE FROM wallet_keystores;
       DELETE FROM identities;
       DELETE FROM users;
       DELETE FROM organizations;
+      DELETE FROM audit_logs;
     `);
   }
   const didService = new DidService(db);
   const blockchain = new ConsortiumBlockchainAdapter(db);
   const trustObjectService = new TrustObjectService(blockchain, db, didService);
-  const provenanceService = new ProvenanceService(blockchain, db);
+  const provenanceService = new ProvenanceService(blockchain, db, didService);
   const revocationService = new RevocationService(blockchain, db);
   const riskEngine = new AnomalyRiskEngine(db);
 
   const eduModule = new EducationModule(trustObjectService, db);
   const scModule = new SupplyChainModule(trustObjectService, provenanceService);
   const legalModule = new LegalEvidenceModule(trustObjectService, provenanceService);
-  const secModule = new CybersecurityModule(trustObjectService, db);
+  const secModule = new CybersecurityModule(trustObjectService, blockchain, db);
 
   // 1. SEED IDENTITIES & ORGANIZATIONS
   console.log('🔑 [1/5] Registering Decentralized Identities (DIDs) & Wallets...');
@@ -60,14 +62,14 @@ export async function seedDatabase(clean: boolean = true) {
   ];
 
   for (const org of orgs) {
-    const keyPair = CryptoService.generateEd25519KeyPair();
+    const keyPair = CryptoService.generateDeterministicEd25519KeyPair(`seed-org:${org.id}`);
     const { did } = didService.createIdentity({
       sector: org.sector,
       identifier: org.id,
       entityType: 'ORGANIZATION',
       keyPair,
     });
-    const keystore = WalletService.storeKeyPair(did, keyPair);
+    const keystore = WalletService.storeKeyPair(did, keyPair, db);
 
     db.run(
       `INSERT OR REPLACE INTO organizations (id, name, organization_type, jurisdiction, did, public_key, verification_status)
@@ -104,14 +106,14 @@ export async function seedDatabase(clean: boolean = true) {
   ];
 
   for (const person of individuals) {
-    const keyPair = CryptoService.generateEd25519KeyPair();
+    const keyPair = CryptoService.generateDeterministicEd25519KeyPair(`seed-user:${person.id}`);
     const { did } = didService.createIdentity({
       sector: person.sector,
       identifier: person.id,
       entityType: 'INDIVIDUAL',
       keyPair,
     });
-    const keystore = WalletService.storeKeyPair(did, keyPair);
+    const keystore = WalletService.storeKeyPair(did, keyPair, db);
 
     db.run(
       `INSERT OR REPLACE INTO users (id, email, password_hash, display_name, user_type, did, public_key, encrypted_private_key)

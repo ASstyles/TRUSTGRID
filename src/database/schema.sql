@@ -55,6 +55,18 @@ CREATE TABLE IF NOT EXISTS identities (
 
 CREATE INDEX IF NOT EXISTS idx_identities_controller ON identities(controller_did);
 
+-- 3b. Encrypted Wallet Keystores (Off-Chain Private Key Store)
+CREATE TABLE IF NOT EXISTS wallet_keystores (
+    did VARCHAR(128) PRIMARY KEY,
+    public_key TEXT NOT NULL,
+    key_type VARCHAR(32) DEFAULT 'Ed25519VerificationKey2020',
+    encrypted_keystore TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_keystores_did ON wallet_keystores(did);
+
 -- 4. Trust Objects (Core Protocol Entity)
 CREATE TABLE IF NOT EXISTS trust_objects (
     trust_object_id VARCHAR(128) PRIMARY KEY,

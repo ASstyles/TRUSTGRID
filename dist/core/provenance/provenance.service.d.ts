@@ -1,10 +1,12 @@
 import { DatabaseService } from '../../database/db.service.js';
 import { BlockchainAdapter } from '../blockchain/blockchain.interface.js';
+import { DidService } from '../identity/did.service.js';
 import { ProvenanceEvent } from '../trust-object/trust-object.types.js';
 export declare class ProvenanceService {
     private db;
     private blockchain;
-    constructor(blockchain: BlockchainAdapter, db?: DatabaseService);
+    private didService;
+    constructor(blockchain: BlockchainAdapter, db?: DatabaseService, didService?: DidService);
     /**
      * Records a certified custody handoff or state transition on-chain
      */

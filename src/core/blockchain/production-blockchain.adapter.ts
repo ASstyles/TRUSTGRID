@@ -103,6 +103,28 @@ export class ProductionBlockchainAdapter implements BlockchainAdapter {
     };
   }
 
+  public async recordSecurityEvent(params: {
+    eventId: string;
+    trustObjectId: string;
+    deviceId: string;
+    eventType: string;
+    severity: string;
+    expectedHash: string;
+    observedHash: string;
+    description: string;
+    reporterDid: string;
+  }): Promise<{
+    txId: string;
+    blockHeight: number;
+    blockHash: string;
+  }> {
+    return {
+      txId: '0x' + Buffer.from('fabric-sec-tx-' + Date.now()).toString('hex'),
+      blockHeight: 14212,
+      blockHash: '0x' + Buffer.from('fabric-sec-block').toString('hex'),
+    };
+  }
+
   public async getProof(trustObjectId: string): Promise<BlockchainProof | null> {
     return null;
   }

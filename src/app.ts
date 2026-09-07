@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { DatabaseService } from './database/db.service.js';
 import { ConsortiumBlockchainAdapter } from './core/blockchain/consortium-blockchain.adapter.js';
 import { DidService } from './core/identity/did.service.js';
+import { WalletService } from './core/identity/wallet.service.js';
 import { TrustObjectService } from './core/trust-object/trust-object.service.js';
 import { ProvenanceService } from './core/provenance/provenance.service.js';
 import { RevocationService } from './core/revocation/revocation.service.js';
@@ -59,7 +60,7 @@ export function createApp() {
   const eduModule = new EducationModule(trustObjectService, db);
   const scModule = new SupplyChainModule(trustObjectService, provenanceService);
   const legalModule = new LegalEvidenceModule(trustObjectService, provenanceService);
-  const secModule = new CybersecurityModule(trustObjectService, db);
+  const secModule = new CybersecurityModule(trustObjectService, blockchain, db);
 
   // Global Middlewares
   app.use(cors());
@@ -92,16 +93,65 @@ export function createApp() {
     next();
   });
 
-  // Health check
-  app.get('/health', (_req, res) => {
-    res.json({
-      status: 'UP',
-      service: 'TRUSTGRID Trust Infrastructure',
-      protocol: 'TOP (Trust Object Protocol) v1.0',
-      network: 'Consortium Notary Ledger (Local MVP) / Production Hyperledger Fabric Ready',
-      timestamp: new Date().toISOString(),
-    });
-  });
+  // Comprehensive System Health Check (addresses SIH requirement #24)
+  const healthHandler = async (_req: express.Request, res: express.Response) => {
+    try {
+      // 1. Database check
+      const dbCheck = db.getOne<{ ok: number }>('SELECT 1 as ok');
+      const dbStatus = dbCheck?.ok === 1 ? 'ok' : 'error';
+
+      // 2. Blockchain check & ledger integrity
+      const ledgerIntegrity = await blockchain.verifyLedgerIntegrity();
+      const blockchainStatus = 'ok';
+
+      // 3. Identity & Key store check
+      const notaryKey = WalletService.getKeyPair('did:trustgrid:sys:consortium-notary', db);
+      const identityStoreStatus = notaryKey ? 'ok' : 'uninitialized';
+
+      // 4. Seed / Demo data readiness check
+      const demoEdu = db.getOne<{ count: number }>(
+        "SELECT COUNT(*) as count FROM trust_objects WHERE trust_object_id = 'TO-EDU-DEGREE-GENUINE-2024'"
+      );
+      const demoDataStatus = (demoEdu && demoEdu.count > 0) ? 'ready' : 'unseeded';
+
+      const allOk = dbStatus === 'ok' && ledgerIntegrity.valid && identityStoreStatus === 'ok';
+
+      res.status(allOk ? 200 : 503).json({
+        status: allOk ? 'UP' : 'DEGRADED',
+        api: 'ok',
+        database: dbStatus,
+        blockchain: blockchainStatus,
+        ledgerIntegrity: ledgerIntegrity.valid,
+        identityStore: identityStoreStatus,
+        demoData: demoDataStatus,
+        service: 'TRUSTGRID Trust Infrastructure',
+        protocol: 'TOP (Trust Object Protocol) v1.0',
+        network: blockchain.networkType,
+        networkName: blockchain.name,
+        ledgerDetails: {
+          totalBlocks: ledgerIntegrity.totalBlocks,
+          verifiedTransactions: ledgerIntegrity.verifiedTxs,
+          reason: ledgerIntegrity.reason,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        status: 'DOWN',
+        api: 'error',
+        database: 'error',
+        blockchain: 'error',
+        ledgerIntegrity: false,
+        identityStore: 'error',
+        demoData: 'error',
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  app.get('/health', healthHandler);
+  app.get('/api/health', healthHandler);
 
   // Mount API Routes
   app.use('/api/demo', createDemoRoutes(verificationService, db));

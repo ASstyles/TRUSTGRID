@@ -40,9 +40,25 @@ export declare class ConsortiumBlockchainAdapter implements BlockchainAdapter {
         blockHeight: number;
         blockHash: string;
     }>;
+    recordSecurityEvent(params: {
+        eventId: string;
+        trustObjectId: string;
+        deviceId: string;
+        eventType: string;
+        severity: string;
+        expectedHash: string;
+        observedHash: string;
+        description: string;
+        reporterDid: string;
+    }): Promise<{
+        txId: string;
+        blockHeight: number;
+        blockHash: string;
+    }>;
     getProof(trustObjectId: string): Promise<BlockchainProof | null>;
     getTransaction(txId: string): Promise<BlockchainTransaction | null>;
     getAuditLedger(): Promise<Block[]>;
+    private getValidatorPublicKey;
     verifyLedgerIntegrity(): Promise<{
         valid: boolean;
         totalBlocks: number;

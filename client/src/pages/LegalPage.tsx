@@ -63,7 +63,7 @@ export const LegalPage: React.FC = () => {
             <span>Legal Sector — Digital Forensic Evidence & Chain of Custody</span>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Preserving court-admissible digital evidence under Section 65B of the Indian Evidence Act with immutable cryptographic handoffs.
+            Preserving cryptographically verifiable digital evidence under Section 65B of the Indian Evidence Act with tamper-evident cryptographic handoffs.
           </p>
         </div>
       </div>
@@ -82,7 +82,7 @@ export const LegalPage: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className={`status-pill status-${ev.status === 'ACTIVE' ? 'authentic' : 'tampered'}`}>
-                    {ev.status === 'ACTIVE' ? 'COURT ADMISSIBLE' : 'INTEGRITY COMPROMISED'}
+                    {ev.status === 'ACTIVE' ? 'AUTHENTIC / VERIFIED' : 'INTEGRITY COMPROMISED'}
                   </span>
                   <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                     Case: {ev.metadata.caseNumber} • Tag: {ev.metadata.evidenceTag}

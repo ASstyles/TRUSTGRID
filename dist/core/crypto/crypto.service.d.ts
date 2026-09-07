@@ -6,6 +6,7 @@ export interface EncryptedKeystore {
     ciphertext: string;
     iv: string;
     tag: string;
+    salt?: string;
     algorithm: 'aes-256-gcm';
 }
 export declare class CryptoService {
@@ -27,6 +28,11 @@ export declare class CryptoService {
      */
     static generateEd25519KeyPair(): KeyPair;
     /**
+     * Deterministically derives an Ed25519 keypair from a seed string.
+     * Ensures identical identities produce the exact same keypair across environments.
+     */
+    static generateDeterministicEd25519KeyPair(seedInput: string): KeyPair;
+    /**
      * Signs arbitrary string or buffer using an Ed25519 private key.
      * Returns base64 signature.
      */
@@ -36,9 +42,9 @@ export declare class CryptoService {
      */
     static verify(data: string | Buffer, signatureBase64: string, publicKeyPem: string): boolean;
     /**
-     * Encrypts private key using AES-256-GCM and a passphrase.
+     * Encrypts private key using AES-256-GCM, unique random salt, unique random IV, and an authentication tag.
      */
-    static encryptPrivateKey(privateKey: string, secretPassphrase: string): EncryptedKeystore;
+    static encryptPrivateKey(privateKey: string, secretPassphrase: string, customSalt?: string): EncryptedKeystore;
     /**
      * Decrypts private key from an EncryptedKeystore
      */

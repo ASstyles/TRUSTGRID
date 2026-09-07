@@ -140,7 +140,7 @@ export const CybersecurityPage: React.FC = () => {
 
             <div style={{ background: '#0a0e17', padding: '10px', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Immutable Configuration Hash Baseline
+                Cryptographic Configuration Hash Baseline
               </div>
               <div className="mono-box" style={{ fontSize: '0.78rem' }}>
                 {d.metadata.configurationHash}
@@ -186,7 +186,7 @@ export const CybersecurityPage: React.FC = () => {
         <div className="tg-card-header">
           <div className="tg-card-title">
             <Terminal size={18} style={{ color: 'var(--accent-rose)' }} />
-            <span>Immutable Security Incident Ledger</span>
+            <span>On-Chain Anchored Security Incident Ledger</span>
           </div>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             Tamper-evident SOC audit stream

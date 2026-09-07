@@ -4,7 +4,7 @@ exports.LegalEvidenceModule = void 0;
 class LegalEvidenceModule {
     name = 'Legal & Digital Forensic Chain of Custody';
     sectorId = 'LEGAL';
-    description = 'Tamper-evident chain of custody for digital evidence admissible in judicial proceedings';
+    description = 'Tamper-evident chain of custody for digital forensic evidence';
     supportedObjectTypes = ['EVIDENCE'];
     trustObjectService;
     provenanceService;
@@ -38,7 +38,7 @@ class LegalEvidenceModule {
     generateVerificationSummary(result) {
         const isAuthentic = result.overallStatus === 'AUTHENTIC';
         return {
-            headline: isAuthentic ? 'Court-Admissible Evidence Integrity Verified' : 'EVIDENCE INTEGRITY FAILURE',
+            headline: isAuthentic ? 'Digital Forensic Evidence Integrity Verified' : 'EVIDENCE INTEGRITY FAILURE',
             badges: [
                 isAuthentic ? 'EVIDENCE_AUTHENTIC' : 'SPOLIATION_DETECTED',
                 result.provenanceStatus.isValid ? 'CUSTODY_UNCOMPROMISED' : 'CHAIN_OF_CUSTODY_BROKEN',

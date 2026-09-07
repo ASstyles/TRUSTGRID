@@ -17,18 +17,22 @@ export class ConsortiumBlockchainAdapter implements BlockchainAdapter {
   constructor(db?: DatabaseService) {
     this.db = db || DatabaseService.getInstance();
     
-    // Check if notary identity exists in DB, or create one
-    const existingNotary = this.db.getOne<any>('SELECT * FROM identities WHERE did = ?', [this.notaryDid]);
-    if (existingNotary && WalletService.getPrivateKey(this.notaryDid)) {
-      this.notaryKeyPair = {
-        publicKey: existingNotary.public_key,
-        privateKey: WalletService.getPrivateKey(this.notaryDid)!,
-      };
+    // Ensure stable, persistent keypair for consortium notary
+    const existingKey = WalletService.getKeyPair(this.notaryDid, this.db);
+    if (existingKey) {
+      this.notaryKeyPair = existingKey;
     } else {
-      this.notaryKeyPair = CryptoService.generateEd25519KeyPair();
-      WalletService.storeKeyPair(this.notaryDid, this.notaryKeyPair);
+      // Deterministically derive initial key from wallet secret to ensure identity stability across restarts
+      const initialKeyPair = CryptoService.generateDeterministicEd25519KeyPair(`notary-seed:${this.notaryDid}`);
+      WalletService.storeKeyPair(this.notaryDid, initialKeyPair, this.db);
+      this.notaryKeyPair = initialKeyPair;
+    }
+
+    // Ensure identity row exists in identities table with the notary's true public key
+    const existingNotary = this.db.getOne<any>('SELECT * FROM identities WHERE did = ?', [this.notaryDid]);
+    if (!existingNotary) {
       this.db.run(
-        `INSERT OR REPLACE INTO identities 
+        `INSERT INTO identities 
          (did, entity_type, controller_did, public_key, key_type, verification_method, authentication_methods, service_endpoints, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -386,9 +390,9 @@ export class ConsortiumBlockchainAdapter implements BlockchainAdapter {
         event.eventId,
         event.trustObjectId,
         event.eventType,
-        event.fromDid || null,
-        event.toDid || null,
-        event.location || null,
+        event.fromDid,
+        event.toDid,
+        event.location,
         event.coordinates?.latitude || null,
         event.coordinates?.longitude || null,
         event.actionDescription,
@@ -398,6 +402,62 @@ export class ConsortiumBlockchainAdapter implements BlockchainAdapter {
         JSON.stringify(event.metadata || {}),
       ]
     );
+
+    return {
+      txId,
+      blockHeight: block.header.height,
+      blockHash: block.blockHash,
+    };
+  }
+
+  public async recordSecurityEvent(params: {
+    eventId: string;
+    trustObjectId: string;
+    deviceId: string;
+    eventType: string;
+    severity: string;
+    expectedHash: string;
+    observedHash: string;
+    description: string;
+    reporterDid: string;
+  }): Promise<{
+    txId: string;
+    blockHeight: number;
+    blockHash: string;
+  }> {
+    const timestamp = new Date().toISOString();
+    const payload = {
+      action: 'SECURITY_ALERT',
+      eventId: params.eventId,
+      trustObjectId: params.trustObjectId,
+      deviceId: params.deviceId,
+      eventType: params.eventType,
+      severity: params.severity,
+      expectedHash: params.expectedHash,
+      observedHash: params.observedHash,
+      description: params.description,
+      reporterDid: params.reporterDid,
+      timestamp,
+    };
+
+    const merkleLeaf = CryptoService.hashObject(payload);
+    const txId = '0x' + CryptoService.sha256(`SEC-TX-${params.eventId}-${merkleLeaf}`);
+    const notarySignature = CryptoService.sign(merkleLeaf, this.notaryKeyPair.privateKey);
+
+    const tx: BlockchainTransaction = {
+      txId,
+      blockHeight: this.currentHeight + 1,
+      actionType: 'SECURITY_ALERT',
+      trustObjectId: params.trustObjectId,
+      contentHash: params.observedHash,
+      signerDid: params.reporterDid,
+      notarySignature,
+      timestamp,
+      merkleLeaf,
+      payload,
+    };
+
+    const block = this.mineBlock([tx]);
 
     return {
       txId,
@@ -476,55 +536,147 @@ export class ConsortiumBlockchainAdapter implements BlockchainAdapter {
     return this.blocks;
   }
 
+  private getValidatorPublicKey(validatorDid: string): string | null {
+    if (validatorDid === this.notaryDid) {
+      return this.notaryKeyPair.publicKey;
+    }
+    const row = this.db.getOne<{ public_key: string }>('SELECT public_key FROM identities WHERE did = ?', [validatorDid]);
+    if (row && row.public_key) return row.public_key;
+    return WalletService.getPublicKey(validatorDid);
+  }
+
   public async verifyLedgerIntegrity(): Promise<{
     valid: boolean;
     totalBlocks: number;
     verifiedTxs: number;
     reason?: string;
   }> {
+    if (this.blocks.length === 0) {
+      return { valid: false, totalBlocks: 0, verifiedTxs: 0, reason: 'EMPTY_LEDGER: No blocks in blockchain' };
+    }
+
     let verifiedTxs = 0;
 
+    // 1. Verify Genesis Block (Block 0)
+    const genesis = this.blocks[0];
+    if (genesis.header.height !== 0) {
+      return { valid: false, totalBlocks: this.blocks.length, verifiedTxs, reason: 'INVALID_BLOCK_HEIGHT: Genesis block height must be 0' };
+    }
+    if (genesis.header.previousHash !== '0000000000000000000000000000000000000000000000000000000000000000') {
+      return { valid: false, totalBlocks: this.blocks.length, verifiedTxs, reason: 'INVALID_PREVIOUS_HASH: Genesis block previousHash must be 64 zeros' };
+    }
+    const expectedGenesisHash = CryptoService.sha256(CryptoService.canonicalStringify(genesis.header));
+    if (expectedGenesisHash !== genesis.blockHash) {
+      return { valid: false, totalBlocks: this.blocks.length, verifiedTxs, reason: 'INVALID_BLOCK_HASH: Genesis block header hash mismatch' };
+    }
+    const genesisValidatorPubKey = this.getValidatorPublicKey(genesis.header.validatorDid);
+    if (!genesisValidatorPubKey || !CryptoService.verify(genesis.blockHash, genesis.validatorSignature, genesisValidatorPubKey)) {
+      return { valid: false, totalBlocks: this.blocks.length, verifiedTxs, reason: 'INVALID_VALIDATOR_SIGNATURE: Genesis block validator signature invalid' };
+    }
+
+    // 2. Verify Consecutive Blocks
     for (let i = 1; i < this.blocks.length; i++) {
       const prevBlock = this.blocks[i - 1];
       const currBlock = this.blocks[i];
 
-      // 1. Check previous hash continuity
+      // Block height continuity
+      if (currBlock.header.height !== i) {
+        return {
+          valid: false,
+          totalBlocks: this.blocks.length,
+          verifiedTxs,
+          reason: `INVALID_BLOCK_HEIGHT: Block sequence gap at index ${i}, found height ${currBlock.header.height}`,
+        };
+      }
+
+      // Previous hash continuity
       if (currBlock.header.previousHash !== prevBlock.blockHash) {
         return {
           valid: false,
           totalBlocks: this.blocks.length,
           verifiedTxs,
-          reason: `Block ${i} previousHash does not match Block ${i - 1} blockHash`,
+          reason: `INVALID_PREVIOUS_HASH: Block ${i} previousHash diverges from block ${i - 1} blockHash`,
         };
       }
 
-      // 2. Check header hash
+      // Canonical Header Hash verification
       const expectedBlockHash = CryptoService.sha256(CryptoService.canonicalStringify(currBlock.header));
       if (expectedBlockHash !== currBlock.blockHash) {
         return {
           valid: false,
           totalBlocks: this.blocks.length,
           verifiedTxs,
-          reason: `Block ${i} header hash validation failed`,
+          reason: `INVALID_BLOCK_HASH: Block ${i} header hash validation failed`,
         };
       }
 
-      // 3. Verify notary signature
+      // Merkle Root calculation & verification
+      const leaves = currBlock.transactions.map((tx) => tx.merkleLeaf);
+      const expectedMerkleRoot = CryptoService.computeMerkleRoot(leaves);
+      if (currBlock.header.merkleRoot !== expectedMerkleRoot) {
+        return {
+          valid: false,
+          totalBlocks: this.blocks.length,
+          verifiedTxs,
+          reason: `INVALID_MERKLE_ROOT: Block ${i} Merkle root calculation mismatch`,
+        };
+      }
+
+      // Validator Notary Signature verification
+      const validatorPubKey = this.getValidatorPublicKey(currBlock.header.validatorDid);
+      if (!validatorPubKey) {
+        return {
+          valid: false,
+          totalBlocks: this.blocks.length,
+          verifiedTxs,
+          reason: `INVALID_VALIDATOR_SIGNATURE: Unknown validator DID ${currBlock.header.validatorDid} for block ${i}`,
+        };
+      }
       const validSig = CryptoService.verify(
         currBlock.blockHash,
         currBlock.validatorSignature,
-        this.notaryKeyPair.publicKey
+        validatorPubKey
       );
       if (!validSig) {
         return {
           valid: false,
           totalBlocks: this.blocks.length,
           verifiedTxs,
-          reason: `Block ${i} validator signature is invalid`,
+          reason: `INVALID_VALIDATOR_SIGNATURE: Block ${i} validator signature is invalid`,
         };
       }
 
-      verifiedTxs += currBlock.transactions.length;
+      // Individual Transaction verification
+      for (const tx of currBlock.transactions) {
+        if (tx.blockHeight !== currBlock.header.height) {
+          return {
+            valid: false,
+            totalBlocks: this.blocks.length,
+            verifiedTxs,
+            reason: `INVALID_TRANSACTION_HASH: Transaction ${tx.txId} blockHeight ${tx.blockHeight} does not match block ${currBlock.header.height}`,
+          };
+        }
+        if (tx.blockHash && tx.blockHash !== currBlock.blockHash) {
+          return {
+            valid: false,
+            totalBlocks: this.blocks.length,
+            verifiedTxs,
+            reason: `INVALID_TRANSACTION_HASH: Transaction ${tx.txId} blockHash does not match block ${currBlock.blockHash}`,
+          };
+        }
+        if (tx.notarySignature) {
+          const validTxSig = CryptoService.verify(tx.merkleLeaf, tx.notarySignature, validatorPubKey);
+          if (!validTxSig) {
+            return {
+              valid: false,
+              totalBlocks: this.blocks.length,
+              verifiedTxs,
+              reason: `INVALID_TRANSACTION_SIGNATURE: Transaction ${tx.txId} notary signature is invalid`,
+            };
+          }
+        }
+        verifiedTxs++;
+      }
     }
 
     return {

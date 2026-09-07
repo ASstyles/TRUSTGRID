@@ -48,6 +48,28 @@ class CryptoService {
         return { publicKey, privateKey };
     }
     /**
+     * Deterministically derives an Ed25519 keypair from a seed string.
+     * Ensures identical identities produce the exact same keypair across environments.
+     */
+    static generateDeterministicEd25519KeyPair(seedInput) {
+        const seed = node_crypto_1.default.createHash('sha256').update(seedInput).digest();
+        // Ed25519 PKCS#8 DER header prefix for 32-byte raw seed:
+        const pkcs8Der = Buffer.concat([
+            Buffer.from('302e020100300506032b657004220420', 'hex'),
+            seed,
+        ]);
+        const privateKeyObj = node_crypto_1.default.createPrivateKey({
+            key: pkcs8Der,
+            format: 'der',
+            type: 'pkcs8',
+        });
+        const publicKeyObj = node_crypto_1.default.createPublicKey(privateKeyObj);
+        return {
+            privateKey: privateKeyObj.export({ type: 'pkcs8', format: 'pem' }),
+            publicKey: publicKeyObj.export({ type: 'spki', format: 'pem' }),
+        };
+    }
+    /**
      * Signs arbitrary string or buffer using an Ed25519 private key.
      * Returns base64 signature.
      */
@@ -70,10 +92,11 @@ class CryptoService {
         }
     }
     /**
-     * Encrypts private key using AES-256-GCM and a passphrase.
+     * Encrypts private key using AES-256-GCM, unique random salt, unique random IV, and an authentication tag.
      */
-    static encryptPrivateKey(privateKey, secretPassphrase) {
-        const key = node_crypto_1.default.scryptSync(secretPassphrase, 'trustgrid-salt', 32);
+    static encryptPrivateKey(privateKey, secretPassphrase, customSalt) {
+        const salt = customSalt || node_crypto_1.default.randomBytes(16).toString('hex');
+        const key = node_crypto_1.default.scryptSync(secretPassphrase, salt, 32);
         const iv = node_crypto_1.default.randomBytes(16);
         const cipher = node_crypto_1.default.createCipheriv('aes-256-gcm', key, iv);
         let encrypted = cipher.update(privateKey, 'utf8', 'hex');
@@ -83,6 +106,7 @@ class CryptoService {
             ciphertext: encrypted,
             iv: iv.toString('hex'),
             tag,
+            salt,
             algorithm: 'aes-256-gcm',
         };
     }
@@ -90,7 +114,8 @@ class CryptoService {
      * Decrypts private key from an EncryptedKeystore
      */
     static decryptPrivateKey(keystore, secretPassphrase) {
-        const key = node_crypto_1.default.scryptSync(secretPassphrase, 'trustgrid-salt', 32);
+        const salt = keystore.salt || 'trustgrid-salt';
+        const key = node_crypto_1.default.scryptSync(secretPassphrase, salt, 32);
         const decipher = node_crypto_1.default.createDecipheriv('aes-256-gcm', key, Buffer.from(keystore.iv, 'hex'));
         decipher.setAuthTag(Buffer.from(keystore.tag, 'hex'));
         let decrypted = decipher.update(keystore.ciphertext, 'hex', 'utf8');

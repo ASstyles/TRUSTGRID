@@ -5,13 +5,21 @@
 
 ---
 
-## 1. Executive Summary & Vision
+## 1. Executive Summary & Canonical Positioning
+
+> **TRUSTGRID is a sector-agnostic institutional trust infrastructure built around the Trust Object Protocol (TOP). TOP provides a common model for creating, signing, anchoring, verifying, revoking, and auditing digital and physical trust objects.**
+>
+> **Instead of putting sensitive information on-chain, TRUSTGRID keeps sensitive data off-chain and anchors cryptographic proofs, provenance, status, and audit references to a tamper-evident blockchain ledger.**
+>
+> **The same verification infrastructure is demonstrated across four sectors: academic credentials, pharmaceutical provenance, digital forensic evidence, and critical device integrity.**
+>
+> **One trust protocol. Four sectors. One verification engine.**
 
 Today, every major economic sector operates an isolated, fragile island of trust:
 * **Universities** maintain opaque academic degree databases susceptible to SQL injection and insider forgery.
 * **Pharmaceutical and manufacturing supply chains** struggle with adulterated batches and counterfeit products injected during distributor transit.
 * **Law enforcement and judiciaries** face digital evidence spoliation challenges where CCTV files or digital records cannot provably demonstrate an unbroken chain of custody.
-* **Cybersecurity teams** struggle to establish immutable baselines for critical infrastructure devices and SCADA endpoints.
+* **Cybersecurity teams** struggle to establish tamper-evident cryptographic baselines for critical infrastructure devices and SCADA endpoints.
 
 **TRUSTGRID** solves this structural vulnerability not by creating four unrelated applications, but by inventing a unified, sector-agnostic protocol: the **Trust Object Protocol (TOP)**.
 
@@ -53,10 +61,10 @@ Today, every major economic sector operates an isolated, fragile island of trust
 ## 2. Core Protocol Innovation: The Trust Object Protocol (TOP)
 
 * **TOP is the central innovation.**
-* **Blockchain is the immutable trust substrate.**
+* **Blockchain provides the tamper-evident trust substrate.**
 * **The four flagship sectors are real-world validations of the exact same protocol.**
 
-Every digital or physical asset registered in TRUSTGRID becomes an immutable **Trust Object**:
+Every digital or physical asset registered in TRUSTGRID becomes a tamper-evident, cryptographically verifiable **Trust Object**:
 
 ```json
 {
@@ -110,17 +118,17 @@ When any Trust Object is presented to TRUSTGRID, the exact same verification eng
 
 ## 4. Architectural Truth & Blockchain Substrate Realism
 
-* **MVP Implementation:** A local **Consortium-style Cryptographic Trust Ledger** executing sequential blocks, SHA-256 Merkle trees, block headers, and notary validator signatures.
-* **Enterprise Production Substrate:** Built on top of a swappable `BlockchainAdapter` interface with a production `ProductionBlockchainAdapter` designed for **Hyperledger Fabric** multi-organization consortium networks. Zero application code refactoring is needed when deploying to an enterprise cluster.
+* **MVP:** TRUSTGRID currently demonstrates the trust protocol using a cryptographically verifiable consortium-style ledger with chained blocks, Merkle roots, and validator signatures running locally in-process.
+* **Production path:** The blockchain layer is abstracted behind `BlockchainAdapter` so the same application/protocol layer can connect to a multi-organization permissioned network such as **Hyperledger Fabric** with zero application code refactoring.
 
 ---
 
 ## 5. Why Not Store Sensitive Data On-Chain?
 
-Public and consortium blockchains are immutable public ledgers. Storing student transcripts, medical specifications, or forensic files directly on-chain violates privacy frameworks (GDPR, India DPDP Act 2023) and creates blockchain bloat:
+Public and consortium blockchains are tamper-evident append-only ledgers. Storing student transcripts, medical specifications, or forensic files directly on-chain violates privacy frameworks (GDPR, India DPDP Act 2023) and creates blockchain bloat:
 * **Sensitive metadata remains 100% off-chain** in encrypted relational stores.
 * **Only the cryptographic content hash, issuer DID, block timestamp, and status** are anchored on-chain.
-* **Privacy-Preserving Trust Passport:** Supports selective disclosure where users can cryptographically prove their degree or credential without disclosing GPA, residential coordinates, or financial data.
+* **Privacy-Aware Trust Passport:** Supports selective disclosure architecture where users can cryptographically prove their degree or credential without disclosing GPA, residential coordinates, or financial data.
 
 ---
 
@@ -128,16 +136,16 @@ Public and consortium blockchains are immutable public ledgers. Storing student 
 
 | Sector | Demonstrated Use Case | What Happens Under Attack | Status Detected |
 |---|---|---|---|
-| **🎓 Education** | Academic degree verification | Student name changed from "Rahul" to "Rohan", CGPA falsified from 7.1 to 9.9 | `TAMPERED` (Content Hash Mismatch) |
-| **📦 Supply Chain** | Remdesivir antiviral batch tracking | Unverified distributor injects counterfeit batch without manufacturer handoff signature | `PROVENANCE_MISMATCH` (Broken Custody) |
-| **⚖️ Legal Evidence** | Seized 4K CCTV surveillance | Video frames edited between 02:14:00 - 02:17:30 | `TAMPERED` (Spoliation Detected) |
-| **🛡️ Cybersecurity** | Grid SCADA router configuration | Unauthorized firewall backdoor injected into router firmware | `TAMPERED` (Critical Baseline Breach) |
+| **🎓 Education** | Academic Credential Verification | Student name changed from "Rahul" to "Rohan", CGPA falsified from 7.1 to 9.9 | `TAMPERED` (Content Hash Mismatch) |
+| **📦 Supply Chain** | Pharmaceutical Product Provenance | Unverified distributor injects counterfeit batch without manufacturer handoff signature | `PROVENANCE_MISMATCH` (Broken Custody) |
+| **⚖️ Legal Evidence** | Digital Forensic Evidence Integrity | Video frames edited between 02:14:00 - 02:17:30 | `TAMPERED` (Spoliation Detected) |
+| **🛡️ Cybersecurity** | Critical Device Integrity Monitoring | Unauthorized firewall backdoor injected into router firmware | `DEVICE_INTEGRITY_COMPROMISED` (Critical Baseline Breach) |
 
 ---
 
 ## 7. Explainable Trust Risk Engine (No AI Gimmicks)
 
-Rather than using an opaque LLM chatbot, TRUSTGRID implements an explainable, deterministic 0–100 behavioral anomaly scoring engine:
+Rather than using an opaque LLM chatbot, TRUSTGRID implements an explainable, deterministic 0–100 behavioral anomaly scoring engine that explains the factors contributing to elevated trust risk:
 * **Duplicate Credential Claim (+30 risk):** Same content hash claimed across multiple distinct entity DIDs.
 * **High Frequency Verification Spike (+20 risk):** >6 verification attempts within 15 minutes.
 * **Content Hash Bit-Flip (+55 risk):** Data divergence between off-chain records and on-chain proofs.
@@ -147,7 +155,7 @@ Outputs human-understandable audit rationales:
 ```
 Risk: 92/100 — CRITICAL
 Reasons:
-• Off-chain data content hash does not match immutable on-chain proof (Tampering detected)
+• Off-chain data content hash does not match on-chain proof (Tampering detected)
 • Provenance transition gap: custody transfer was not signed by legitimate prior owner
 ```
 
@@ -182,10 +190,10 @@ npm --prefix client install
 # 3. Seed database with 4 Flagship Scenarios
 npm run seed
 
-# 4. Run automated test suite (17 tests)
+# 4. Run automated test suite (39 tests)
 npm test
 
-# 5. Launch unified production server
+# 5. Launch unified server
 npm run build
 npm start
 ```
@@ -216,11 +224,15 @@ TRUSTGRID features a comprehensive automated test suite verifying:
 * Explainable Trust Risk Engine factor scoring
 * Full end-to-end lifecycle (Issue → Anchor → Verify Authentic → Tamper → Verify Tampered → Revoke)
 * Consortium blockchain ledger integrity audit
+* Persistent encrypted keystore across simulated server restarts
+* Cryptographic provenance chain continuity and forged signature detection
+* Duplicate credential claim and anomaly risk elevation
+* SCADA device configuration drift and on-chain security alert anchoring
 
 ```bash
 npm test
 ```
-Result: **17 passed, 0 failed, 100% pass rate**.
+Result: **39 passed, 0 failed, 100% pass rate**.
 
 ---
 
@@ -264,7 +276,7 @@ TRUSTGRID/
 │   │   ├── db.service.ts          # Dual SQLite / PG database service
 │   │   └── seed.ts                # Idempotent demonstrator seed data
 │   ├── api/routes/                # REST endpoints for all services
-│   └── tests/                     # 17 Unit, Integration & E2E tests
+│   └── tests/                     # 39 Unit, Integration, Persistence & E2E tests
 └── client/
     ├── package.json
     ├── vite.config.ts             # Vite dev server with proxy to port 5000

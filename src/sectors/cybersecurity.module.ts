@@ -1,4 +1,6 @@
+import crypto from 'node:crypto';
 import { DatabaseService } from '../database/db.service.js';
+import { BlockchainAdapter } from '../core/blockchain/blockchain.interface.js';
 import { TrustObjectService } from '../core/trust-object/trust-object.service.js';
 import { TrustObject, VerificationResult } from '../core/trust-object/trust-object.types.js';
 import { SectorModule } from './sector.interface.js';
@@ -21,10 +23,12 @@ export class CybersecurityModule implements SectorModule {
   public readonly supportedObjectTypes = ['DEVICE' as const];
 
   private trustObjectService: TrustObjectService;
+  private blockchain?: BlockchainAdapter;
   private db: DatabaseService;
 
-  constructor(trustObjectService: TrustObjectService, db?: DatabaseService) {
+  constructor(trustObjectService: TrustObjectService, blockchain?: BlockchainAdapter, db?: DatabaseService) {
     this.trustObjectService = trustObjectService;
+    this.blockchain = blockchain;
     this.db = db || DatabaseService.getInstance();
   }
 
@@ -63,6 +67,7 @@ export class CybersecurityModule implements SectorModule {
     baselineHash: string;
     observedHash: string;
     securityEventId?: string;
+    blockchainTxId?: string;
     description: string;
   }> {
     const trustObject = await this.trustObjectService.getTrustObject(params.trustObjectId);
@@ -74,14 +79,36 @@ export class CybersecurityModule implements SectorModule {
     const isIntact = baselineHash === params.observedConfigHash;
 
     if (!isIntact) {
-      const eventId = 'SEC-' + Date.now();
+      const eventId = `SEC-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
       const description = `UNAUTHORIZED CONFIGURATION DRIFT: Observed hash ${params.observedConfigHash.substring(0, 12)} does not match registered baseline ${baselineHash.substring(0, 12)}. Potential malicious firmware/rootkit tampering.`;
+
+      let blockchainTxId: string | undefined = undefined;
+
+      // Anchor security event on-chain
+      if (this.blockchain) {
+        try {
+          const onChain = await this.blockchain.recordSecurityEvent({
+            eventId,
+            trustObjectId: params.trustObjectId,
+            deviceId: trustObject.subjectId,
+            eventType: 'BASELINE_VIOLATION',
+            severity: 'CRITICAL',
+            expectedHash: baselineHash,
+            observedHash: params.observedConfigHash,
+            description,
+            reporterDid: params.reporterDid,
+          });
+          blockchainTxId = onChain.txId;
+        } catch {
+          // If blockchain offline, continue with database record
+        }
+      }
 
       // Record in security_events table
       this.db.run(
         `INSERT INTO security_events 
-         (id, device_id, trust_object_id, event_severity, event_type, expected_hash, observed_hash, description, reported_by_did)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, device_id, trust_object_id, event_severity, event_type, expected_hash, observed_hash, description, reported_by_did, blockchain_tx_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           eventId,
           trustObject.subjectId,
@@ -92,6 +119,7 @@ export class CybersecurityModule implements SectorModule {
           params.observedConfigHash,
           description,
           params.reporterDid,
+          blockchainTxId || null,
         ]
       );
 
@@ -107,6 +135,7 @@ export class CybersecurityModule implements SectorModule {
         baselineHash,
         observedHash: params.observedConfigHash,
         securityEventId: eventId,
+        blockchainTxId,
         description,
       };
     }

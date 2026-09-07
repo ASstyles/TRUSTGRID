@@ -56,7 +56,7 @@ export interface VerificationCheck {
     timestamp: string;
 }
 export interface VerificationResult {
-    overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH';
+    overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED';
     trustScore: number;
     trustObjectId: string;
     objectType: TrustObjectType;

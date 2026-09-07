@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { DatabaseService } from '../../database/db.service.js';
 import { TrustObject } from '../trust-object/trust-object.types.js';
 
@@ -168,7 +169,7 @@ export class AnomalyRiskEngine {
         `INSERT INTO risk_events (id, trust_object_id, actor_did, risk_score, risk_level, primary_factors, anomaly_type)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
-          'RISK-' + Date.now(),
+          `RISK-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
           params.trustObject.trustObjectId,
           params.verifierDid || 'did:trustgrid:anon:verifier',
           finalScore,

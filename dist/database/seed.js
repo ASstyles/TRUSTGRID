@@ -30,21 +30,23 @@ async function seedDatabase(clean = true) {
       DELETE FROM trust_objects;
       DELETE FROM blockchain_transactions;
       DELETE FROM blockchain_blocks;
+      DELETE FROM wallet_keystores;
       DELETE FROM identities;
       DELETE FROM users;
       DELETE FROM organizations;
+      DELETE FROM audit_logs;
     `);
     }
     const didService = new did_service_js_1.DidService(db);
     const blockchain = new consortium_blockchain_adapter_js_1.ConsortiumBlockchainAdapter(db);
     const trustObjectService = new trust_object_service_js_1.TrustObjectService(blockchain, db, didService);
-    const provenanceService = new provenance_service_js_1.ProvenanceService(blockchain, db);
+    const provenanceService = new provenance_service_js_1.ProvenanceService(blockchain, db, didService);
     const revocationService = new revocation_service_js_1.RevocationService(blockchain, db);
     const riskEngine = new anomaly_service_js_1.AnomalyRiskEngine(db);
     const eduModule = new education_module_js_1.EducationModule(trustObjectService, db);
     const scModule = new supply_chain_module_js_1.SupplyChainModule(trustObjectService, provenanceService);
     const legalModule = new legal_module_js_1.LegalEvidenceModule(trustObjectService, provenanceService);
-    const secModule = new cybersecurity_module_js_1.CybersecurityModule(trustObjectService, db);
+    const secModule = new cybersecurity_module_js_1.CybersecurityModule(trustObjectService, blockchain, db);
     // 1. SEED IDENTITIES & ORGANIZATIONS
     console.log('🔑 [1/5] Registering Decentralized Identities (DIDs) & Wallets...');
     const orgs = [
@@ -58,14 +60,14 @@ async function seedDatabase(clean = true) {
         { sector: 'sec', id: 'national-cert', name: 'National Critical Infrastructure Security SOC', type: 'CYBERSECURITY_AGENCY' },
     ];
     for (const org of orgs) {
-        const keyPair = crypto_service_js_1.CryptoService.generateEd25519KeyPair();
+        const keyPair = crypto_service_js_1.CryptoService.generateDeterministicEd25519KeyPair(`seed-org:${org.id}`);
         const { did } = didService.createIdentity({
             sector: org.sector,
             identifier: org.id,
             entityType: 'ORGANIZATION',
             keyPair,
         });
-        const keystore = wallet_service_js_1.WalletService.storeKeyPair(did, keyPair);
+        const keystore = wallet_service_js_1.WalletService.storeKeyPair(did, keyPair, db);
         db.run(`INSERT OR REPLACE INTO organizations (id, name, organization_type, jurisdiction, did, public_key, verification_status)
        VALUES (?, ?, ?, ?, ?, ?, 'VERIFIED')`, ['ORG-' + org.id, org.name, org.type, 'IN-DL', did, keyPair.publicKey]);
         // Register organization user
@@ -92,14 +94,14 @@ async function seedDatabase(clean = true) {
         { sector: 'sys', id: 'global-verifier', name: 'Public TrustGrid Verifier', email: 'verifier@trustgrid.network', role: 'VERIFIER' },
     ];
     for (const person of individuals) {
-        const keyPair = crypto_service_js_1.CryptoService.generateEd25519KeyPair();
+        const keyPair = crypto_service_js_1.CryptoService.generateDeterministicEd25519KeyPair(`seed-user:${person.id}`);
         const { did } = didService.createIdentity({
             sector: person.sector,
             identifier: person.id,
             entityType: 'INDIVIDUAL',
             keyPair,
         });
-        const keystore = wallet_service_js_1.WalletService.storeKeyPair(did, keyPair);
+        const keystore = wallet_service_js_1.WalletService.storeKeyPair(did, keyPair, db);
         db.run(`INSERT OR REPLACE INTO users (id, email, password_hash, display_name, user_type, did, public_key, encrypted_private_key)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
             'USR-' + person.id,

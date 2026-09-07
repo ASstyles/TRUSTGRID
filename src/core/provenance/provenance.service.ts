@@ -1,15 +1,20 @@
+import crypto from 'node:crypto';
 import { DatabaseService } from '../../database/db.service.js';
 import { BlockchainAdapter } from '../blockchain/blockchain.interface.js';
+import { CryptoService } from '../crypto/crypto.service.js';
+import { DidService } from '../identity/did.service.js';
 import { WalletService } from '../identity/wallet.service.js';
 import { ProvenanceEvent } from '../trust-object/trust-object.types.js';
 
 export class ProvenanceService {
   private db: DatabaseService;
   private blockchain: BlockchainAdapter;
+  private didService: DidService;
 
-  constructor(blockchain: BlockchainAdapter, db?: DatabaseService) {
+  constructor(blockchain: BlockchainAdapter, db?: DatabaseService, didService?: DidService) {
     this.blockchain = blockchain;
     this.db = db || DatabaseService.getInstance();
+    this.didService = didService || new DidService(this.db);
   }
 
   /**
@@ -24,7 +29,7 @@ export class ProvenanceService {
     actionDescription: string;
     metadata?: Record<string, any>;
   }): Promise<ProvenanceEvent> {
-    const eventId = `EV-TRANSFER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const eventId = `EV-TRANSFER-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const timestamp = new Date().toISOString();
 
     // Sign the custody handoff
@@ -61,7 +66,7 @@ export class ProvenanceService {
       `INSERT INTO ownership_events (id, trust_object_id, previous_owner_did, new_owner_did, transfer_reason, signature, blockchain_tx_id, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        'OWN-' + Date.now(),
+        `OWN-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
         params.trustObjectId,
         params.fromDid,
         params.toDid,
@@ -91,7 +96,7 @@ export class ProvenanceService {
       const prev = events[i - 1];
       const curr = events[i];
 
-      // Handoff consistency: current 'fromDid' should match previous 'toDid'
+      // 1. Handoff consistency: current 'fromDid' should match previous 'toDid'
       if (curr.fromDid && prev.toDid && curr.fromDid !== prev.toDid) {
         return {
           isValid: false,
@@ -100,13 +105,29 @@ export class ProvenanceService {
         };
       }
 
-      // Chronological consistency
+      // 2. Chronological consistency
       if (new Date(curr.timestamp).getTime() < new Date(prev.timestamp).getTime()) {
         return {
           isValid: false,
           brokenIndex: i,
           reason: `Time-warp anomaly: Event ${i} timestamp is older than previous event`,
         };
+      }
+
+      // 3. Cryptographic Signature Validation on custody transitions
+      if (curr.eventType === 'TRANSFER' && curr.signature && curr.fromDid) {
+        const fromPubKey = this.didService.getPublicKey(curr.fromDid);
+        if (fromPubKey) {
+          const signPayload = `${curr.trustObjectId}-${curr.fromDid}->${curr.toDid}-${curr.timestamp}`;
+          const signatureValid = CryptoService.verify(signPayload, curr.signature, fromPubKey);
+          if (!signatureValid) {
+            return {
+              isValid: false,
+              brokenIndex: i,
+              reason: `Invalid cryptographic signature on custody transition ${i} from ${curr.fromDid}`,
+            };
+          }
+        }
       }
     }
 

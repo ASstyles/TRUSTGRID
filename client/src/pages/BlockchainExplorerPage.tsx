@@ -4,6 +4,7 @@ import { Layers, ShieldCheck, CheckCircle2, Hash, Terminal, RefreshCw, Server } 
 
 export const BlockchainExplorerPage: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
+  const [health, setHealth] = useState<any>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
   const [integrityResult, setIntegrityResult] = useState<any | null>(null);
@@ -16,12 +17,14 @@ export const BlockchainExplorerPage: React.FC = () => {
   const loadLedgerData = async () => {
     setLoading(true);
     try {
-      const [statusRes, blocksRes] = await Promise.all([
+      const [statusRes, blocksRes, healthRes] = await Promise.all([
         api.getBlockchainStatus(),
         api.getBlocks(),
+        api.getHealth().catch(() => null),
       ]);
-      if (statusRes.success) setStatus(statusRes);
-      if (blocksRes.success) {
+      if (statusRes?.success) setStatus(statusRes);
+      if (healthRes) setHealth(healthRes);
+      if (blocksRes?.success) {
         setBlocks(blocksRes.blocks);
         if (blocksRes.blocks.length > 0) setSelectedBlock(blocksRes.blocks[0]);
       }
@@ -35,7 +38,7 @@ export const BlockchainExplorerPage: React.FC = () => {
   const handleVerifyLedger = async () => {
     try {
       const res = await api.getBlockchainStatus();
-      if (res.success) {
+      if (res?.success) {
         setIntegrityResult(res.ledgerIntegrity);
       }
     } catch (e) {
@@ -52,7 +55,7 @@ export const BlockchainExplorerPage: React.FC = () => {
             <span>Blockchain Trust Ledger Explorer</span>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Consortium-style cryptographic audit ledger with immutable blocks, Merkle roots, and notary endorsements.
+            Consortium-style cryptographic trust ledger with tamper-evident blocks, Merkle roots, and notary endorsements.
           </p>
         </div>
 
@@ -92,6 +95,49 @@ export const BlockchainExplorerPage: React.FC = () => {
           FABRIC READY
         </div>
       </div>
+
+      {/* System Health Diagnostics Panel (addresses SIH requirement #24) */}
+      {health && (
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-md)',
+          padding: '12px 18px',
+          marginBottom: '20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Server size={18} style={{ color: 'var(--accent-cyan)' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              System Health Diagnostics:
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+            <span className="status-pill" style={{ background: health.api === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', color: health.api === 'ok' ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+              API: {health.api.toUpperCase()}
+            </span>
+            <span className="status-pill" style={{ background: health.database === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', color: health.database === 'ok' ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+              DB: {health.database.toUpperCase()}
+            </span>
+            <span className="status-pill" style={{ background: health.blockchain === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', color: health.blockchain === 'ok' ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+              LEDGER: {health.blockchain.toUpperCase()}
+            </span>
+            <span className="status-pill" style={{ background: health.ledgerIntegrity ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', color: health.ledgerIntegrity ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+              INTEGRITY: {health.ledgerIntegrity ? 'VALID' : 'CORRUPTED'}
+            </span>
+            <span className="status-pill" style={{ background: health.identityStore === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', color: health.identityStore === 'ok' ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+              KEYSTORE: {health.identityStore.toUpperCase()}
+            </span>
+            <span className="status-pill" style={{ background: health.demoData === 'ready' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', color: health.demoData === 'ready' ? 'var(--accent-emerald)' : 'var(--accent-rose)' }}>
+              DEMO DATA: {health.demoData.toUpperCase()}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Live Ledger Verification Result */}
       {integrityResult && (

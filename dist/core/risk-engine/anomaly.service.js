@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnomalyRiskEngine = void 0;
+const node_crypto_1 = __importDefault(require("node:crypto"));
 const db_service_js_1 = require("../../database/db.service.js");
 class AnomalyRiskEngine {
     db;
@@ -120,7 +124,7 @@ class AnomalyRiskEngine {
         if (finalScore >= 25) {
             this.db.run(`INSERT INTO risk_events (id, trust_object_id, actor_did, risk_score, risk_level, primary_factors, anomaly_type)
          VALUES (?, ?, ?, ?, ?, ?, ?)`, [
-                'RISK-' + Date.now(),
+                `RISK-${Date.now()}-${node_crypto_1.default.randomBytes(4).toString('hex')}`,
                 params.trustObject.trustObjectId,
                 params.verifierDid || 'did:trustgrid:anon:verifier',
                 finalScore,

@@ -1,4 +1,5 @@
 import { DatabaseService } from '../database/db.service.js';
+import { BlockchainAdapter } from '../core/blockchain/blockchain.interface.js';
 import { TrustObjectService } from '../core/trust-object/trust-object.service.js';
 import { TrustObject, VerificationResult } from '../core/trust-object/trust-object.types.js';
 import { SectorModule } from './sector.interface.js';
@@ -18,8 +19,9 @@ export declare class CybersecurityModule implements SectorModule {
     readonly description = "Zero-trust device configuration baselines and unauthorized modification detection";
     readonly supportedObjectTypes: "DEVICE"[];
     private trustObjectService;
+    private blockchain?;
     private db;
-    constructor(trustObjectService: TrustObjectService, db?: DatabaseService);
+    constructor(trustObjectService: TrustObjectService, blockchain?: BlockchainAdapter, db?: DatabaseService);
     validateMetadata(metadata: any): {
         valid: boolean;
         errors?: string[];
@@ -41,6 +43,7 @@ export declare class CybersecurityModule implements SectorModule {
         baselineHash: string;
         observedHash: string;
         securityEventId?: string;
+        blockchainTxId?: string;
         description: string;
     }>;
     generateVerificationSummary(result: VerificationResult): {
@@ -49,7 +52,7 @@ export declare class CybersecurityModule implements SectorModule {
         domainDetails: {
             device: string;
             subjectId: string;
-            status: "REVOKED" | "EXPIRED" | "TAMPERED" | "AUTHENTIC" | "INVALID_SIGNATURE" | "PROVENANCE_MISMATCH";
+            status: "REVOKED" | "EXPIRED" | "TAMPERED" | "AUTHENTIC" | "INVALID_SIGNATURE" | "PROVENANCE_MISMATCH" | "DEVICE_INTEGRITY_COMPROMISED";
         };
     };
 }

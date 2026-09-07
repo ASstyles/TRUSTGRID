@@ -47,4 +47,4 @@ TRUSTGRID employs modern, NIST/CISA-recommended cryptographic primitives with no
   * HTTP action & resource URI
   * Client IP address & User Agent
   * Success status & structured payload
-* Audit logs are immutable and can be exported for forensic and judicial compliance under Section 65B of the Indian Evidence Act.
+* Audit logs are append-only and tamper-evident, exportable for forensic and judicial verification under Section 65B of the Indian Evidence Act.

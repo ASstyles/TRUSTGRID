@@ -15,7 +15,7 @@ export interface ForensicEvidenceMetadata {
 export declare class LegalEvidenceModule implements SectorModule {
     readonly name = "Legal & Digital Forensic Chain of Custody";
     readonly sectorId: "LEGAL";
-    readonly description = "Tamper-evident chain of custody for digital evidence admissible in judicial proceedings";
+    readonly description = "Tamper-evident chain of custody for digital forensic evidence";
     readonly supportedObjectTypes: "EVIDENCE"[];
     private trustObjectService;
     private provenanceService;

@@ -14,6 +14,9 @@ export function createBlockchainRoutes(blockchain: BlockchainAdapter, db: Databa
 
       res.json({
         success: true,
+        valid: integrity.valid,
+        blockCount: blocks.length,
+        transactionCount: txCountRow?.count || 0,
         networkType: blockchain.networkType,
         networkName: blockchain.name,
         architectureNote: 'MVP operates an in-process consortium-style cryptographic ledger. Production targets Hyperledger Fabric with zero protocol changes.',

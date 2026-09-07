@@ -6,16 +6,27 @@
 
 ## 1. System & Demo Endpoints
 
-### `GET /health`
-Returns the status and protocol version of the running TRUSTGRID instance.
+### `GET /health` or `GET /api/health`
+Returns comprehensive system diagnostics and protocol status across all layers.
 * **Response:**
   ```json
   {
     "status": "UP",
+    "api": "ok",
+    "database": "ok",
+    "blockchain": "ok",
+    "ledgerIntegrity": true,
+    "identityStore": "ok",
+    "demoData": "ready",
     "service": "TRUSTGRID Trust Infrastructure",
     "protocol": "TOP (Trust Object Protocol) v1.0",
-    "network": "Consortium Notary Ledger (Local MVP) / Production Hyperledger Fabric Ready",
-    "timestamp": "2026-09-07T16:00:00.000Z"
+    "network": "CONSORTIUM_LEDGER",
+    "networkName": "Consortium Notary Ledger (Local MVP) / Hyperledger Fabric Ready",
+    "ledgerDetails": {
+      "totalBlocks": 26,
+      "verifiedTransactions": 25
+    },
+    "timestamp": "2026-09-07T17:10:00.000Z"
   }
   ```
 
@@ -45,7 +56,7 @@ Executes the 7-step cryptographic verification pipeline.
   {
     "success": true,
     "result": {
-      "overallStatus": "AUTHENTIC | TAMPERED | REVOKED | EXPIRED | PROVENANCE_MISMATCH",
+      "overallStatus": "AUTHENTIC | TAMPERED | REVOKED | EXPIRED | PROVENANCE_MISMATCH | DEVICE_INTEGRITY_COMPROMISED",
       "trustScore": 95,
       "trustObjectId": "TO-...",
       "hashMatch": true,
@@ -99,7 +110,7 @@ Simulates off-chain database tampering for live demonstrations.
 * `GET /api/cybersecurity/devices`: Lists critical device baselines.
 * `POST /api/cybersecurity/register`: Registers device configuration baseline hash.
 * `POST /api/cybersecurity/audit`: Performs live configuration audit against baseline.
-* `GET /api/cybersecurity/events`: Lists immutable security incident alerts.
+* `GET /api/cybersecurity/events`: Lists security incident alerts anchored on-chain.
 
 ---
 

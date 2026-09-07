@@ -10,7 +10,7 @@ function createDemoRoutes(verificationService, db) {
             sector: 'EDUCATION',
             title: '1. Detect Tampered Academic Degree',
             subtitle: 'Original Student Rahul Sharma vs Forged Rohan Sharma (Fake CGPA 9.95)',
-            description: 'Demonstrates off-chain database tampering detection. A student degree forged in off-chain records is instantly caught by calculating the canonical SHA-256 hash and comparing it against the immutable on-chain proof.',
+            description: 'Demonstrates off-chain database tampering detection. A student degree forged in off-chain records is instantly caught by calculating the canonical SHA-256 hash and comparing it against the on-chain proof.',
             trustObjectId: 'TO-EDU-DEGREE-TAMPERED-2024',
             comparisonId: 'TO-EDU-DEGREE-GENUINE-2024',
             expectedStatus: 'TAMPERED',
@@ -32,7 +32,7 @@ function createDemoRoutes(verificationService, db) {
             sector: 'LEGAL',
             title: '3. Digital Evidence Chain of Custody & Spoliation',
             subtitle: 'Seized 4K CCTV Corridor Surveillance (Modified frames in security incident)',
-            description: 'Demonstrates court-admissible chain of custody for digital forensics (Investigator → Forensic Lab → High Court). Catches frame spoliation where timestamps and camera feeds were altered.',
+            description: 'Demonstrates tamper-evident digital forensic evidence chain of custody (Investigator → Forensic Lab → High Court). Catches frame spoliation where timestamps and camera feeds were altered.',
             trustObjectId: 'TO-EVI-CCTV-TAMPERED-082',
             comparisonId: 'TO-EVI-CCTV-FORENSIC-081',
             expectedStatus: 'TAMPERED',
@@ -46,8 +46,8 @@ function createDemoRoutes(verificationService, db) {
             description: 'Demonstrates zero-trust device configuration baselines. An unauthorized modification to critical infrastructure firmware/firewall rules instantly generates a CRITICAL security event on the blockchain ledger.',
             trustObjectId: 'TO-DEV-EDGE-GATEWAY-01',
             comparisonId: 'TO-DEV-CORE-ROUTER-09',
-            expectedStatus: 'TAMPERED',
-            keyPoint: 'TOP bridges physical/IT assets to decentralized trust: baselines are tamper-evident, and security alerts are immutably logged.',
+            expectedStatus: 'DEVICE_INTEGRITY_COMPROMISED',
+            keyPoint: 'TOP bridges physical/IT assets to decentralized trust: baselines are tamper-evident, and security alerts are anchored on-chain.',
         },
     ];
     // GET all flagship demo scenarios
