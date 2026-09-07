@@ -1,0 +1,37 @@
+services:
+  trustgrid-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustgrid_app
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - DATABASE_FILE=/app/data/trustgrid.db
+      - TRUSTGRID_WALLET_SECRET=trustgrid-master-secure-demo-secret-2026
+      - BLOCKCHAIN_MODE=CONSORTIUM_LEDGER
+    volumes:
+      - trustgrid_data:/app/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: trustgrid_postgres
+    environment:
+      POSTGRES_DB: trustgrid_db
+      POSTGRES_USER: trustgrid_user
+      POSTGRES_PASSWORD: trustgrid_secure_password_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    restart: unless-stopped
+    profiles:
+      - postgres
+
+volumes:
+  trustgrid_data:
+  pg_data:

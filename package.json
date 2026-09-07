@@ -1,0 +1,41 @@
+{
+  "name": "trustgrid",
+  "version": "1.0.0",
+  "description": "TRUSTGRID — Decentralized Institutional Trust Infrastructure powered by the Trust Object Protocol (TOP)",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev:server": "tsx watch src/server.ts",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:server": "tsc",
+    "build:client": "npm --prefix client run build",
+    "build": "npm run build:server && npm run build:client",
+    "seed": "tsx src/database/seed.ts",
+    "test": "tsx --test src/tests/*.test.ts",
+    "start": "tsx src/server.ts"
+  },
+  "keywords": [
+    "blockchain",
+    "trust-object-protocol",
+    "cybersecurity",
+    "decentralized-identity",
+    "smart-india-hackathon",
+    "ed25519",
+    "tamper-evident"
+  ],
+  "author": "TRUSTGRID Team (SIH 2026)",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
