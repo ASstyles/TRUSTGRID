@@ -190,6 +190,8 @@ class ConsortiumBlockchainAdapter {
             merkleRoot: block.header.merkleRoot,
             notarySignature,
             previousBlockHash: block.header.previousHash,
+            endorsementsCount: 1,
+            validatorSignatures: [notarySignature],
         };
     }
     async verifyProof(trustObjectId, expectedHash) {
@@ -388,6 +390,8 @@ class ConsortiumBlockchainAdapter {
             merkleRoot: block ? block.header.merkleRoot : crypto_service_js_1.CryptoService.sha256('merkle-root'),
             notarySignature: row.notary_signature,
             previousBlockHash: block ? block.header.previousHash : '00000000000000000000000000000000',
+            endorsementsCount: 1,
+            validatorSignatures: [row.notary_signature],
         };
     }
     async getTransaction(txId) {

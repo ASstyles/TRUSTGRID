@@ -30,11 +30,13 @@ const supply_chain_routes_js_1 = require("./api/routes/supply-chain.routes.js");
 const legal_routes_js_1 = require("./api/routes/legal.routes.js");
 const cybersecurity_routes_js_1 = require("./api/routes/cybersecurity.routes.js");
 const blockchain_routes_js_1 = require("./api/routes/blockchain.routes.js");
+const multi_node_blockchain_adapter_js_1 = require("./core/blockchain/multi-node-blockchain.adapter.js");
 const graph_routes_js_1 = require("./api/routes/graph.routes.js");
 const passport_routes_js_1 = require("./api/routes/passport.routes.js");
 const risk_routes_js_1 = require("./api/routes/risk.routes.js");
 const identity_routes_js_1 = require("./api/routes/identity.routes.js");
 const demo_routes_js_1 = require("./api/routes/demo.routes.js");
+const node_routes_js_1 = require("./api/routes/node.routes.js");
 function createApp() {
     const app = (0, express_1.default)();
     // Core Services
@@ -48,6 +50,7 @@ function createApp() {
     const verificationService = new verification_service_js_1.VerificationService(blockchain, trustObjectService, provenanceService, revocationService, riskEngine, didService, db);
     const graphService = new graph_service_js_1.TrustGraphService(db);
     const passportService = new passport_service_js_1.TrustPassportService(db);
+    const multiNodeAdapter = new multi_node_blockchain_adapter_js_1.MultiNodeBlockchainAdapter(db);
     // Sector Modules
     const eduModule = new education_module_js_1.EducationModule(trustObjectService, db);
     const scModule = new supply_chain_module_js_1.SupplyChainModule(trustObjectService, provenanceService);
@@ -92,7 +95,9 @@ function createApp() {
             // 3. Identity & Key store check
             const notaryKey = wallet_service_js_1.WalletService.getKeyPair('did:trustgrid:sys:consortium-notary', db);
             const identityStoreStatus = notaryKey ? 'ok' : 'uninitialized';
-            // 4. Seed / Demo data readiness check
+            // 4. Multi-node cluster audit
+            const clusterAudit = multiNodeAdapter.verifyCrossNodeLedger();
+            // 5. Seed / Demo data readiness check
             const demoEdu = db.getOne("SELECT COUNT(*) as count FROM trust_objects WHERE trust_object_id = 'TO-EDU-DEGREE-GENUINE-2024'");
             const demoDataStatus = (demoEdu && demoEdu.count > 0) ? 'ready' : 'unseeded';
             const allOk = dbStatus === 'ok' && ledgerIntegrity.valid && identityStoreStatus === 'ok';
@@ -105,9 +110,15 @@ function createApp() {
                 identityStore: identityStoreStatus,
                 demoData: demoDataStatus,
                 service: 'TRUSTGRID Trust Infrastructure',
-                protocol: 'TOP (Trust Object Protocol) v1.0',
+                protocol: 'TOP (Trust Object Protocol) v2.0',
                 network: blockchain.networkType,
                 networkName: blockchain.name,
+                cluster: {
+                    totalNodes: 3,
+                    quorumReachable: clusterAudit.quorumReachable,
+                    consistent: clusterAudit.consistent,
+                    nodes: multiNodeAdapter.getNodes().map((n) => ({ id: n.nodeId, status: n.status, height: n.height })),
+                },
                 ledgerDetails: {
                     totalBlocks: ledgerIntegrity.totalBlocks,
                     verifiedTransactions: ledgerIntegrity.verifiedTxs,
@@ -141,6 +152,7 @@ function createApp() {
     app.use('/api/legal', (0, legal_routes_js_1.createLegalRoutes)(legalModule, db));
     app.use('/api/cybersecurity', (0, cybersecurity_routes_js_1.createCybersecurityRoutes)(secModule, db));
     app.use('/api/blockchain', (0, blockchain_routes_js_1.createBlockchainRoutes)(blockchain, db));
+    app.use('/api/nodes', (0, node_routes_js_1.createNodeRoutes)(multiNodeAdapter));
     app.use('/api/graph', (0, graph_routes_js_1.createGraphRoutes)(graphService));
     app.use('/api/passport', (0, passport_routes_js_1.createPassportRoutes)(passportService));
     app.use('/api/risk', (0, risk_routes_js_1.createRiskRoutes)(db));

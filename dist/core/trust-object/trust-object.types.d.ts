@@ -47,6 +47,8 @@ export interface BlockchainProof {
     merkleRoot: string;
     notarySignature: string;
     previousBlockHash: string;
+    endorsementsCount?: number;
+    validatorSignatures?: string[];
 }
 export interface VerificationCheck {
     code: string;
@@ -56,7 +58,7 @@ export interface VerificationCheck {
     timestamp: string;
 }
 export interface VerificationResult {
-    overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED';
+    overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED' | 'CONSENSUS_REJECTED';
     trustScore: number;
     trustObjectId: string;
     objectType: TrustObjectType;

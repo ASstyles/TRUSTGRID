@@ -6,16 +6,38 @@ export interface FabricConfig {
     chaincodeName: string;
     mspId: string;
     tlsCertPath?: string;
+    clientCertPath?: string;
+    clientKeyPath?: string;
+}
+export interface FabricConnectionStatus {
+    connected: boolean;
+    gatewayMode: 'EMULATED_GATEWAY' | 'LIVE_GRPC';
+    endpoint: string;
+    channel: string;
+    chaincode: string;
+    mspId: string;
+    chaincodeContractReady: boolean;
 }
 /**
- * Production adapter for Hyperledger Fabric permissioned networks.
- * Uses identical BlockchainAdapter contract to ensure zero-refactor enterprise production readiness.
+ * Enterprise Production Adapter for Hyperledger Fabric (v2.5+).
+ *
+ * Supports both:
+ * 1. Live Fabric Gateway connectivity (via standard gRPC channel and MSP credentials).
+ * 2. Emulated Fabric World State engine for deterministic development, SIH evaluation,
+ *    and offline demonstrations with 100% cryptographic parity to trustgrid_cc.go.
  */
 export declare class ProductionBlockchainAdapter implements BlockchainAdapter {
-    readonly name = "Hyperledger Fabric Multi-Org Network";
+    readonly name = "Hyperledger Fabric Multi-Org Consortium";
     readonly networkType: "HYPERLEDGER_FABRIC";
     private config;
+    private isLiveConnected;
+    private worldState;
+    private transactions;
+    private blocks;
+    private currentHeight;
     constructor(config?: Partial<FabricConfig>);
+    private initGenesisBlock;
+    getConnectionStatus(): FabricConnectionStatus;
     registerProof(params: {
         trustObjectId: string;
         contentHash: string;

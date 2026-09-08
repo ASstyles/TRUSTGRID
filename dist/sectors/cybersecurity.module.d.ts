@@ -52,7 +52,7 @@ export declare class CybersecurityModule implements SectorModule {
         domainDetails: {
             device: string;
             subjectId: string;
-            status: "REVOKED" | "EXPIRED" | "TAMPERED" | "AUTHENTIC" | "INVALID_SIGNATURE" | "PROVENANCE_MISMATCH" | "DEVICE_INTEGRITY_COMPROMISED";
+            status: "REVOKED" | "EXPIRED" | "TAMPERED" | "AUTHENTIC" | "INVALID_SIGNATURE" | "PROVENANCE_MISMATCH" | "DEVICE_INTEGRITY_COMPROMISED" | "CONSENSUS_REJECTED";
         };
     };
 }

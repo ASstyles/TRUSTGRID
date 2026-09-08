@@ -9,6 +9,7 @@ import {
   EndorsementCertificate,
   EndorsementVote,
 } from './blockchain.interface.js';
+import { BlockchainProof } from '../trust-object/trust-object.types.js';
 
 export type NodeStatus = 'ONLINE' | 'OFFLINE' | 'SYNCING' | 'CORRUPTED';
 export type NodeRole = 'LEADER' | 'VALIDATOR';
@@ -227,7 +228,7 @@ export class LedgerNode {
     };
   }
 
-  public getProof(trustObjectId: string): any | null {
+  public getProof(trustObjectId: string): BlockchainProof | null {
     const tx = this.db.prepare(
       'SELECT * FROM local_transactions WHERE trust_object_id = ? ORDER BY block_height DESC'
     ).get(trustObjectId) as any;

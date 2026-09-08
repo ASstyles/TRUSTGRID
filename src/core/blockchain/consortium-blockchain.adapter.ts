@@ -232,6 +232,8 @@ export class ConsortiumBlockchainAdapter implements BlockchainAdapter {
       merkleRoot: block.header.merkleRoot,
       notarySignature,
       previousBlockHash: block.header.previousHash,
+      endorsementsCount: 1,
+      validatorSignatures: [notarySignature],
     };
   }
 
@@ -507,6 +509,8 @@ export class ConsortiumBlockchainAdapter implements BlockchainAdapter {
       merkleRoot: block ? block.header.merkleRoot : CryptoService.sha256('merkle-root'),
       notarySignature: row.notary_signature,
       previousBlockHash: block ? block.header.previousHash : '00000000000000000000000000000000',
+      endorsementsCount: 1,
+      validatorSignatures: [row.notary_signature],
     };
   }
 

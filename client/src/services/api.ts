@@ -1,7 +1,7 @@
 const API_BASE = '/api';
 
 export interface VerificationResult {
-  overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED';
+  overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED' | 'CONSENSUS_REJECTED';
   trustScore: number;
   trustObjectId: string;
   objectType: string;

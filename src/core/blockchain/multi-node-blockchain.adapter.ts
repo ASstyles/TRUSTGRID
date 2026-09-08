@@ -334,6 +334,8 @@ export class MultiNodeBlockchainAdapter implements BlockchainAdapter {
       merkleRoot: block.header.merkleRoot,
       notarySignature: tx.notarySignature,
       previousBlockHash: block.header.previousHash,
+      endorsementsCount: block.certificate?.votes.length || 1,
+      validatorSignatures: block.certificate?.votes.map((v) => v.signature) || [block.validatorSignature],
     };
   }
 
@@ -413,6 +415,8 @@ export class MultiNodeBlockchainAdapter implements BlockchainAdapter {
       merkleLeaf,
       merkleRoot: block.header.merkleRoot,
       previousBlockHash: block.header.previousHash,
+      endorsementsCount: block.certificate?.votes.length || 1,
+      validatorSignatures: block.certificate?.votes.map((v) => v.signature) || [block.validatorSignature],
     };
   }
 
