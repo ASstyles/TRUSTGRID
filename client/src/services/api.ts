@@ -183,6 +183,36 @@ export const api = {
     return res.json();
   },
 
+  // Multi-Node PBFT Cluster
+  getClusterNodes: async () => {
+    const res = await fetch(`${API_BASE}/nodes`);
+    return res.json();
+  },
+  getCrossNodeAudit: async () => {
+    const res = await fetch(`${API_BASE}/nodes/audit/cross-node`);
+    return res.json();
+  },
+  failNode: async (nodeId: string) => {
+    const res = await fetch(`${API_BASE}/nodes/${nodeId}/fail`, { method: 'POST' });
+    return res.json();
+  },
+  recoverNode: async (nodeId: string) => {
+    const res = await fetch(`${API_BASE}/nodes/${nodeId}/recover`, { method: 'POST' });
+    return res.json();
+  },
+  syncNode: async (nodeId: string) => {
+    const res = await fetch(`${API_BASE}/nodes/${nodeId}/sync`, { method: 'POST' });
+    return res.json();
+  },
+  tamperNode: async (nodeId: string, height: number = 1) => {
+    const res = await fetch(`${API_BASE}/nodes/${nodeId}/tamper`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ height }),
+    });
+    return res.json();
+  },
+
   // Trust Graph
   getTrustGraph: async (sector?: string) => {
     const url = sector ? `${API_BASE}/graph?sector=${sector}` : `${API_BASE}/graph`;

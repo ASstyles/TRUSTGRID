@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # Node Alpha - Consortium Leader (Port 4001)
+  node-alpha:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustgrid-node-alpha
+    environment:
+      - NODE_ENV=production
+      - NODE_ID=node-alpha
+      - NODE_ROLE=LEADER
+      - NODE_PORT=4001
+      - PEER_NODES=http://node-beta:4002,http://node-gamma:4003
+      - DATABASE_FILE=/data/nodes/node_alpha.db
+    volumes:
+      - node-alpha-data:/data/nodes
+    ports:
+      - "4001:4001"
+    networks:
+      - trustgrid-consortium
+
+  # Node Beta - Logistics & Customs Validator (Port 4002)
+  node-beta:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustgrid-node-beta
+    environment:
+      - NODE_ENV=production
+      - NODE_ID=node-beta
+      - NODE_ROLE=VALIDATOR
+      - NODE_PORT=4002
+      - PEER_NODES=http://node-alpha:4001,http://node-gamma:4003
+      - DATABASE_FILE=/data/nodes/node_beta.db
+    volumes:
+      - node-beta-data:/data/nodes
+    ports:
+      - "4002:4002"
+    networks:
+      - trustgrid-consortium
+
+  # Node Gamma - Judiciary & Audit Validator (Port 4003)
+  node-gamma:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustgrid-node-gamma
+    environment:
+      - NODE_ENV=production
+      - NODE_ID=node-gamma
+      - NODE_ROLE=VALIDATOR
+      - NODE_PORT=4003
+      - PEER_NODES=http://node-alpha:4001,http://node-beta:4002
+      - DATABASE_FILE=/data/nodes/node_gamma.db
+    volumes:
+      - node-gamma-data:/data/nodes
+    ports:
+      - "4003:4003"
+    networks:
+      - trustgrid-consortium
+
+  # TRUSTGRID Core API Gateway & React Visualizer (Port 3000)
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustgrid-gateway
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - CONSORTIUM_NODES=http://node-alpha:4001,http://node-beta:4002,http://node-gamma:4003
+      - DATABASE_FILE=/data/trustgrid.db
+    volumes:
+      - gateway-data:/data
+    ports:
+      - "3000:3000"
+    depends_on:
+      - node-alpha
+      - node-beta
+      - node-gamma
+    networks:
+      - trustgrid-consortium
+
+volumes:
+  node-alpha-data:
+  node-beta-data:
+  node-gamma-data:
+  gateway-data:
+
+networks:
+  trustgrid-consortium:
+    driver: bridge

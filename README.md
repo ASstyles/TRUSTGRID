@@ -240,43 +240,54 @@ Result: **39 passed, 0 failed, 100% pass rate**.
 
 ```
 TRUSTGRID/
-├── package.json                   # Root package script configuration
+├── package.json                   # Root package script configuration (Node 24+, tsx, vite)
 ├── tsconfig.json                  # Server TypeScript configuration
 ├── Dockerfile                     # Multi-stage production container build
-├── docker-compose.yml             # Docker Compose orchestration
+├── docker-compose.yml             # Single-instance Docker Compose orchestration
+├── docker-compose.multi-node.yml  # 3-Node PBFT containerized cluster orchestration
 ├── .env.example                   # Complete configuration reference
 ├── README.md                      # Comprehensive project overview
-├── ARCHITECTURE.md                # System architecture & sequence diagrams
-├── SECURITY.md                    # Cryptographic specifications & key safety
-├── API.md                         # Complete REST API reference
-├── DEMO.md                        # 3-Minute SIH Presentation Script
-├── THREAT_MODEL.md                # STRIDE security & attack mitigation matrix
+├── docs/
+│   ├── ARCHITECTURE_AUDIT.md      # Phase 0 baseline audit & v2 architectural roadmap
+│   ├── DISTRIBUTED_LEDGER.md      # Distributed ledger architecture & node topology
+│   ├── CONSENSUS.md               # 3-Phase PBFT consensus protocol & quorum math
+│   ├── SECURITY.md                # Threat model & cryptographic defense-in-depth
+│   └── DEMO_SCRIPT.md             # SIH 2026 Judge Demonstration Guide
 ├── src/
 │   ├── server.ts                  # Server entrypoint with auto-seeding
-│   ├── app.ts                     # Express app assembly & audit middleware
+│   ├── app.ts                     # Express app assembly, audit logging & multi-node router
 │   ├── core/
-│   │   ├── crypto/                # Ed25519, SHA-256 canonical hash, AES-GCM
+│   │   ├── crypto/                # Ed25519, SHA-256 canonical hash, AES-GCM, Merkle trees
 │   │   ├── identity/              # W3C DIDs & encrypted keystore wallet
-│   │   ├── trust-object/          # Trust Object Protocol (TOP) types & service
-│   │   ├── blockchain/            # BlockchainAdapter, Consortium & Fabric adapters
-│   │   ├── verification/          # 7-Step Cryptographic Verification Pipeline
+│   │   ├── trust-object/          # Trust Object Protocol (TOP v2) types & service
+│   │   ├── blockchain/
+│   │   │   ├── node.ts            # LedgerNode class with isolated SQLite & Ed25519 DID
+│   │   │   ├── network.ts         # PeerNetwork router with latency & partition simulation
+│   │   │   ├── consensus.service.ts # 3-Phase PBFT Consensus Engine (Propose/Endorse/Commit)
+│   │   │   ├── multi-node-blockchain.adapter.ts # 3-Node cluster manager (Alpha/Beta/Gamma)
+│   │   │   ├── consortium-blockchain.adapter.ts # Primary consortium ledger adapter
+│   │   │   ├── production-blockchain.adapter.ts # Hyperledger Fabric gateway bridge
+│   │   │   └── fabric-chaincode/
+│   │   │       ├── trustgrid_cc.go # Production Hyperledger Fabric 2.5 Go Smart Contract
+│   │   │       └── go.mod         # Go module definition
+│   │   ├── verification/          # 5-Step Cryptographic Verification Pipeline + PBFT Check
 │   │   ├── provenance/            # Certified multi-party custody handoffs
 │   │   ├── revocation/            # On-chain revocation registry
 │   │   ├── risk-engine/           # Explainable Trust Risk Engine (0-100)
 │   │   ├── trust-graph/           # Cross-sector entity relationship graph
-│   │   └── passport/              # Trust Passport with selective disclosure
+│   │   └── passport/              # Trust Passport with salted commitments & range proofs
 │   ├── sectors/                   # Sector modules validating TOP
 │   │   ├── sector.interface.ts
-│   │   ├── education.module.ts
-│   │   ├── supply-chain.module.ts
-│   │   ├── legal.module.ts
-│   │   └── cybersecurity.module.ts
+│   │   ├── education.module.ts    # Academic degrees & transcript verification
+│   │   ├── supply-chain.module.ts # Pharma batches & cold-chain custody tracking
+│   │   ├── legal.module.ts        # Tamper-evident forensic evidence & chain of custody
+│   │   └── cybersecurity.module.ts # SCADA firmware baselines & on-chain drift alerts
 │   ├── database/
-│   │   ├── schema.sql             # PostgreSQL / ANSI relational DDL
-│   │   ├── db.service.ts          # Dual SQLite / PG database service
+│   │   ├── schema.sql             # Relational DDL & schema migrations
+│   │   ├── db.service.ts          # Built-in node:sqlite database service
 │   │   └── seed.ts                # Idempotent demonstrator seed data
-│   ├── api/routes/                # REST endpoints for all services
-│   └── tests/                     # 39 Unit, Integration, Persistence & E2E tests
+│   ├── api/routes/                # REST endpoints (/api/nodes, /api/verify, etc.)
+│   └── tests/                     # 112 Automated Tests (Consensus, Fault Tolerance, Tamper, Sectors)
 └── client/
     ├── package.json
     ├── vite.config.ts             # Vite dev server with proxy to port 5000
@@ -290,13 +301,35 @@ TRUSTGRID/
         │   ├── HeroVerification.tsx # Signature UI with 7-point checklist & hash diff
         │   ├── TrustGraphView.tsx # Interactive SVG node-link graph
         │   └── TrustPassportCard.tsx # Privacy-preserving passport viewer
-        ├── pages/                 # Sector & audit views
+        ├── pages/
+        │   ├── BlockchainExplorerPage.tsx # Multi-Node PBFT Visualizer & Node Control Panel
+        │   └── ...                # Sector & audit views
         └── services/api.ts        # Frontend REST API client
 ```
 
 ---
 
-## 12. Future Scope & Roadmap
+## 12. Verification & Automated Test Suite
+
+TRUSTGRID features a comprehensive automated test suite consisting of **112 passing tests** executing in ~6 seconds:
+```bash
+npm test
+```
+
+### Test Suite Breakdown:
+- `crypto.test.ts` (4 tests) — Ed25519 signing/verification, RFC 8785 canonical serialization, AES-256-GCM keystores.
+- `merkle.test.ts` (1 test) — Binary Merkle tree root and inclusion proof verification.
+- `multi_node_consensus.test.ts` (15 tests) — 3-Phase PBFT consensus, quorum endorsement certificates ($Q \ge 2$), height continuity.
+- `node_fault_tolerance.test.ts` (12 tests) — Dynamic node crash/failure, network partitions, catchup sync protocol.
+- `ledger_tamper_detection.test.ts` (12 tests) — Deliberate block hash, previous hash, and transaction mutations with cross-node divergence detection and self-healing.
+- `passport_disclosure.test.ts` (12 tests) — Salted attribute commitments, blinding, and numeric predicate range proofs.
+- `fabric_contract.test.ts` (10 tests) — Hyperledger Fabric 2.5 Go contract methods, world state anchoring, revocation.
+- `sector_deep_dive.test.ts` (12 tests) — Education, Supply Chain, Legal Evidence, and Cybersecurity sector deep-dive validation.
+- `e2e.test.ts`, `verification.test.ts`, `provenance_tampering.test.ts`, `persistence.test.ts`, `cybersecurity_e2e.test.ts`, `duplicate_credential.test.ts`, `system_health.test.ts` (34 tests) — Baseline end-to-end integration workflows.
+
+---
+
+## 13. Future Scope & Roadmap
 
 1. **Zero-Knowledge Range Proofs (zk-SNARKs):** Integrating Groth16 / Circom circuits to prove age, credentials, or batch expiry without revealing any numerical attributes.
 2. **Cross-Chain State Anchoring:** Relaying consortium Merkle state roots onto public networks (Polygon / Ethereum) for public notary anchoring.
@@ -305,5 +338,5 @@ TRUSTGRID/
 
 ---
 
-## 13. License
+## 14. License
 Apache License 2.0. Built for Smart India Hackathon 2026.

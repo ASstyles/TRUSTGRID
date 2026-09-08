@@ -70,7 +70,7 @@ export interface VerificationCheck {
 }
 
 export interface VerificationResult {
-  overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED';
+  overallStatus: 'AUTHENTIC' | 'TAMPERED' | 'REVOKED' | 'EXPIRED' | 'INVALID_SIGNATURE' | 'PROVENANCE_MISMATCH' | 'DEVICE_INTEGRITY_COMPROMISED' | 'CONSENSUS_REJECTED';
   trustScore: number; // 0 - 100
   trustObjectId: string;
   objectType: TrustObjectType;

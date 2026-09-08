@@ -8,6 +8,10 @@ export const BlockchainExplorerPage: React.FC = () => {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
   const [integrityResult, setIntegrityResult] = useState<any | null>(null);
+  const [clusterNodes, setClusterNodes] = useState<any[]>([]);
+  const [clusterSummary, setClusterSummary] = useState<any | null>(null);
+  const [auditReport, setAuditReport] = useState<any | null>(null);
+  const [nodeActionLoading, setNodeActionLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -17,13 +21,18 @@ export const BlockchainExplorerPage: React.FC = () => {
   const loadLedgerData = async () => {
     setLoading(true);
     try {
-      const [statusRes, blocksRes, healthRes] = await Promise.all([
+      const [statusRes, blocksRes, healthRes, nodesRes] = await Promise.all([
         api.getBlockchainStatus(),
         api.getBlocks(),
         api.getHealth().catch(() => null),
+        api.getClusterNodes().catch(() => null),
       ]);
       if (statusRes?.success) setStatus(statusRes);
       if (healthRes) setHealth(healthRes);
+      if (nodesRes?.success) {
+        setClusterNodes(nodesRes.nodes || []);
+        setClusterSummary(nodesRes.cluster || null);
+      }
       if (blocksRes?.success) {
         setBlocks(blocksRes.blocks);
         if (blocksRes.blocks.length > 0) setSelectedBlock(blocksRes.blocks[0]);
@@ -43,6 +52,58 @@ export const BlockchainExplorerPage: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleCrossNodeAudit = async () => {
+    try {
+      const res = await api.getCrossNodeAudit();
+      if (res?.success) {
+        setAuditReport(res.auditReport);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleFailNode = async (nodeId: string) => {
+    setNodeActionLoading(nodeId);
+    try {
+      await api.failNode(nodeId);
+      await loadLedgerData();
+    } finally {
+      setNodeActionLoading(null);
+    }
+  };
+
+  const handleRecoverNode = async (nodeId: string) => {
+    setNodeActionLoading(nodeId);
+    try {
+      await api.recoverNode(nodeId);
+      await loadLedgerData();
+    } finally {
+      setNodeActionLoading(null);
+    }
+  };
+
+  const handleTamperNode = async (nodeId: string) => {
+    setNodeActionLoading(nodeId);
+    try {
+      await api.tamperNode(nodeId, 1);
+      await loadLedgerData();
+      await handleCrossNodeAudit();
+    } finally {
+      setNodeActionLoading(null);
+    }
+  };
+
+  const handleSyncNode = async (nodeId: string) => {
+    setNodeActionLoading(nodeId);
+    try {
+      await api.syncNode(nodeId);
+      await loadLedgerData();
+    } finally {
+      setNodeActionLoading(null);
     }
   };
 
@@ -195,6 +256,196 @@ export const BlockchainExplorerPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* PBFT Multi-Node Cluster Control Panel */}
+      <div className="tg-card" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Server size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <span>PBFT Multi-Node Consensus Cluster (3 Nodes)</span>
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Isolated SQLite databases, Ed25519 cryptographic DIDs, and Byzantine fault-tolerant consensus ($N=3, F=1, Quorum \ge 2$).
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              className="tg-btn-secondary"
+              onClick={handleCrossNodeAudit}
+              style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+            >
+              <ShieldCheck size={14} />
+              <span>Cross-Node Ledger Audit</span>
+            </button>
+            <button
+              className="tg-btn-secondary"
+              onClick={loadLedgerData}
+              disabled={loading}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* Cross-Node Audit Alert Banner */}
+        {auditReport && (
+          <div style={{
+            background: auditReport.consistent ? 'rgba(16, 185, 129, 0.08)' : 'rgba(244, 63, 94, 0.08)',
+            border: `1px solid ${auditReport.consistent ? 'var(--accent-emerald)' : 'var(--accent-rose)'}`,
+            borderRadius: 'var(--radius-sm)',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            fontSize: '0.85rem',
+          }}>
+            <div style={{ fontWeight: 800, color: auditReport.consistent ? 'var(--accent-emerald)' : 'var(--accent-rose)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {auditReport.consistent ? <CheckCircle2 size={16} /> : <ShieldCheck size={16} />}
+              <span>{auditReport.consistent ? 'CLUSTER CONSENSUS IN SYNC' : 'CROSS-NODE DIVERGENCE DETECTED'}</span>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Quorum Reached: {auditReport.quorumReachable ? 'YES (2/3)' : 'NO (Quorum Lost)'} | Online Nodes: {auditReport.onlineNodes}/{auditReport.totalNodes} | Diverged: {auditReport.divergedNodes.length > 0 ? auditReport.divergedNodes.join(', ') : 'None'}
+            </div>
+          </div>
+        )}
+
+        {/* 3 Node Cards Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          {clusterNodes.map((node) => {
+            const isOnline = node.status === 'ONLINE';
+            const isCorrupted = node.status === 'CORRUPTED';
+            const isOffline = node.status === 'OFFLINE';
+
+            let statusColor = 'var(--accent-emerald)';
+            let statusBg = 'rgba(16, 185, 129, 0.15)';
+            if (isCorrupted) {
+              statusColor = '#f59e0b';
+              statusBg = 'rgba(245, 158, 11, 0.15)';
+            } else if (isOffline) {
+              statusColor = 'var(--accent-rose)';
+              statusBg = 'rgba(244, 63, 94, 0.15)';
+            }
+
+            return (
+              <div
+                key={node.nodeId}
+                style={{
+                  background: '#0a0e17',
+                  border: `1px solid ${isCorrupted ? '#f59e0b' : isOffline ? 'rgba(244, 63, 94, 0.4)' : 'var(--border-color)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                    {node.name}
+                  </div>
+                  <span className="status-pill" style={{ background: statusBg, color: statusColor, fontSize: '0.7rem' }}>
+                    {node.status}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                  DID: {node.did}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '4px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Height:</span>
+                  <span style={{ fontWeight: 800, color: 'var(--accent-cyan)' }}>#{node.height}</span>
+                </div>
+
+                {node.lastBlockHash && (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Hash: <code>{node.lastBlockHash.substring(0, 20)}...</code>
+                  </div>
+                )}
+
+                {/* Node Actions */}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                  {isOnline && (
+                    <>
+                      <button
+                        onClick={() => handleFailNode(node.nodeId)}
+                        disabled={nodeActionLoading === node.nodeId}
+                        style={{
+                          flex: 1,
+                          fontSize: '0.75rem',
+                          padding: '6px 8px',
+                          background: 'rgba(244, 63, 94, 0.1)',
+                          color: 'var(--accent-rose)',
+                          border: '1px solid rgba(244, 63, 94, 0.3)',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Crash / Fail
+                      </button>
+                      <button
+                        onClick={() => handleTamperNode(node.nodeId)}
+                        disabled={nodeActionLoading === node.nodeId}
+                        style={{
+                          flex: 1,
+                          fontSize: '0.75rem',
+                          padding: '6px 8px',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          color: '#f59e0b',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Tamper DB
+                      </button>
+                    </>
+                  )}
+
+                  {isOffline && (
+                    <button
+                      onClick={() => handleRecoverNode(node.nodeId)}
+                      disabled={nodeActionLoading === node.nodeId}
+                      style={{
+                        width: '100%',
+                        fontSize: '0.75rem',
+                        padding: '6px 8px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: 'var(--accent-emerald)',
+                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Recover & Sync
+                    </button>
+                  )}
+
+                  {isCorrupted && (
+                    <button
+                      onClick={() => handleSyncNode(node.nodeId)}
+                      disabled={nodeActionLoading === node.nodeId}
+                      style={{
+                        width: '100%',
+                        fontSize: '0.75rem',
+                        padding: '6px 8px',
+                        background: 'rgba(6, 182, 212, 0.15)',
+                        color: 'var(--accent-cyan)',
+                        border: '1px solid rgba(6, 182, 212, 0.4)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Reconcile / Self-Heal
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Block Stream & Details Grid */}
       <div className="grid-2">

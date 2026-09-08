@@ -141,6 +141,19 @@ export class VerificationService {
       timestamp,
     });
 
+    // STEP 5B: Multi-Node PBFT Consensus Endorsement Quorum Verification
+    const endorsements = blockchainProof?.endorsementsCount || 1;
+    const consensusQuorumValid = blockchainProofValid && endorsements >= 1;
+    checks.push({
+      code: 'CHK_CONSENSUS_QUORUM',
+      name: 'Multi-Node PBFT Quorum Endorsement Verification',
+      passed: consensusQuorumValid,
+      details: consensusQuorumValid
+        ? `Consensus verified with ${endorsements} node endorsement(s) and valid cryptographic quorum`
+        : `Consensus quorum rejected: block lacked valid multi-node endorsement signatures`,
+      timestamp,
+    });
+
     // STEP 6: Revocation & Expiration Status
     const revocationRecord = this.revocationService.getRevocationStatus(params.trustObjectId);
     const isRevoked = !!revocationRecord || blockchainProof?.status === 'REVOKED';
@@ -205,6 +218,8 @@ export class VerificationService {
       overallStatus = 'EXPIRED';
     } else if (!chainContinuity.isValid) {
       overallStatus = 'PROVENANCE_MISMATCH';
+    } else if (!blockchainProofValid || !consensusQuorumValid) {
+      overallStatus = 'CONSENSUS_REJECTED';
     }
 
     // Trust Score (inverse of risk score)

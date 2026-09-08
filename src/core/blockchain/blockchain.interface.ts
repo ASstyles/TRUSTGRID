@@ -7,6 +7,24 @@ export interface BlockHeader {
   timestamp: string;
   validatorDid: string;
   txCount: number;
+  round?: number;
+  consensusQuorum?: number;
+}
+
+export interface EndorsementVote {
+  voterDid: string;
+  voterNodeId: string;
+  blockHash: string;
+  round: number;
+  signature: string;
+  timestamp: string;
+}
+
+export interface EndorsementCertificate {
+  blockHash: string;
+  round: number;
+  votes: EndorsementVote[];
+  quorumReached: boolean;
 }
 
 export interface Block {
@@ -14,6 +32,7 @@ export interface Block {
   blockHash: string;
   validatorSignature: string;
   transactions: BlockchainTransaction[];
+  certificate?: EndorsementCertificate;
 }
 
 export interface BlockchainTransaction {

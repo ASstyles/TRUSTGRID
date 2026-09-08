@@ -27,11 +27,13 @@ import { createSupplyChainRoutes } from './api/routes/supply-chain.routes.js';
 import { createLegalRoutes } from './api/routes/legal.routes.js';
 import { createCybersecurityRoutes } from './api/routes/cybersecurity.routes.js';
 import { createBlockchainRoutes } from './api/routes/blockchain.routes.js';
+import { MultiNodeBlockchainAdapter } from './core/blockchain/multi-node-blockchain.adapter.js';
 import { createGraphRoutes } from './api/routes/graph.routes.js';
 import { createPassportRoutes } from './api/routes/passport.routes.js';
 import { createRiskRoutes } from './api/routes/risk.routes.js';
 import { createIdentityRoutes } from './api/routes/identity.routes.js';
 import { createDemoRoutes } from './api/routes/demo.routes.js';
+import { createNodeRoutes } from './api/routes/node.routes.js';
 
 export function createApp() {
   const app = express();
@@ -55,6 +57,7 @@ export function createApp() {
   );
   const graphService = new TrustGraphService(db);
   const passportService = new TrustPassportService(db);
+  const multiNodeAdapter = new MultiNodeBlockchainAdapter(db);
 
   // Sector Modules
   const eduModule = new EducationModule(trustObjectService, db);
@@ -108,7 +111,10 @@ export function createApp() {
       const notaryKey = WalletService.getKeyPair('did:trustgrid:sys:consortium-notary', db);
       const identityStoreStatus = notaryKey ? 'ok' : 'uninitialized';
 
-      // 4. Seed / Demo data readiness check
+      // 4. Multi-node cluster audit
+      const clusterAudit = multiNodeAdapter.verifyCrossNodeLedger();
+
+      // 5. Seed / Demo data readiness check
       const demoEdu = db.getOne<{ count: number }>(
         "SELECT COUNT(*) as count FROM trust_objects WHERE trust_object_id = 'TO-EDU-DEGREE-GENUINE-2024'"
       );
@@ -125,9 +131,15 @@ export function createApp() {
         identityStore: identityStoreStatus,
         demoData: demoDataStatus,
         service: 'TRUSTGRID Trust Infrastructure',
-        protocol: 'TOP (Trust Object Protocol) v1.0',
+        protocol: 'TOP (Trust Object Protocol) v2.0',
         network: blockchain.networkType,
         networkName: blockchain.name,
+        cluster: {
+          totalNodes: 3,
+          quorumReachable: clusterAudit.quorumReachable,
+          consistent: clusterAudit.consistent,
+          nodes: multiNodeAdapter.getNodes().map((n) => ({ id: n.nodeId, status: n.status, height: n.height })),
+        },
         ledgerDetails: {
           totalBlocks: ledgerIntegrity.totalBlocks,
           verifiedTransactions: ledgerIntegrity.verifiedTxs,
@@ -162,6 +174,7 @@ export function createApp() {
   app.use('/api/legal', createLegalRoutes(legalModule, db));
   app.use('/api/cybersecurity', createCybersecurityRoutes(secModule, db));
   app.use('/api/blockchain', createBlockchainRoutes(blockchain, db));
+  app.use('/api/nodes', createNodeRoutes(multiNodeAdapter));
   app.use('/api/graph', createGraphRoutes(graphService));
   app.use('/api/passport', createPassportRoutes(passportService));
   app.use('/api/risk', createRiskRoutes(db));
