@@ -34,6 +34,7 @@ import { createRiskRoutes } from './api/routes/risk.routes.js';
 import { createIdentityRoutes } from './api/routes/identity.routes.js';
 import { createDemoRoutes } from './api/routes/demo.routes.js';
 import { createNodeRoutes } from './api/routes/node.routes.js';
+import { createNetworkRoutes } from './api/routes/network.routes.js';
 
 export function createApp() {
   const app = express();
@@ -175,6 +176,7 @@ export function createApp() {
   app.use('/api/cybersecurity', createCybersecurityRoutes(secModule, db));
   app.use('/api/blockchain', createBlockchainRoutes(blockchain, db));
   app.use('/api/nodes', createNodeRoutes(multiNodeAdapter));
+  app.use('/api/network', createNetworkRoutes());
   app.use('/api/graph', createGraphRoutes(graphService));
   app.use('/api/passport', createPassportRoutes(passportService));
   app.use('/api/risk', createRiskRoutes(db));
