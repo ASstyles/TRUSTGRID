@@ -43,7 +43,11 @@ export function createLegalRoutes(legalModule: LegalEvidenceModule, db: Database
   // POST /api/legal/evidence
   router.post('/evidence', async (req, res) => {
     try {
-      const { investigatorDid, metadata, customId } = req.body;
+      const { investigatorDid, metadata, customId } = req.body || {};
+      if (!investigatorDid || !metadata) {
+        return res.status(400).json({ success: false, error: 'investigatorDid and metadata are required' });
+      }
+
       const validation = legalModule.validateMetadata(metadata);
       if (!validation.valid) {
         return res.status(400).json({ success: false, errors: validation.errors });
@@ -64,7 +68,11 @@ export function createLegalRoutes(legalModule: LegalEvidenceModule, db: Database
   // POST /api/legal/transfer
   router.post('/transfer', async (req, res) => {
     try {
-      const { trustObjectId, fromDid, toDid, location, actionDescription } = req.body;
+      const { trustObjectId, fromDid, toDid, location, actionDescription } = req.body || {};
+      if (!trustObjectId || !fromDid || !toDid) {
+        return res.status(400).json({ success: false, error: 'trustObjectId, fromDid, and toDid are required' });
+      }
+
       const event = await legalModule.transferEvidenceCustody({
         trustObjectId,
         fromDid,

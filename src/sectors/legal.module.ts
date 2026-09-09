@@ -29,6 +29,9 @@ export class LegalEvidenceModule implements SectorModule {
   }
 
   public validateMetadata(metadata: any): { valid: boolean; errors?: string[] } {
+    if (!metadata || typeof metadata !== 'object') {
+      return { valid: false, errors: ['metadata must be a non-null object'] };
+    }
     const errors: string[] = [];
     if (!metadata.caseNumber) errors.push('caseNumber is required');
     if (!metadata.evidenceTag) errors.push('evidenceTag is required');

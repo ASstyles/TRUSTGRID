@@ -34,7 +34,7 @@ export class ProvenanceService {
 
     // Sign the custody handoff
     const signPayload = `${params.trustObjectId}-${params.fromDid}->${params.toDid}-${timestamp}`;
-    const signature = WalletService.signWithDid(params.fromDid, signPayload);
+    const signature = WalletService.signWithDid(params.fromDid, signPayload, this.db);
 
     const event: ProvenanceEvent = {
       eventId,

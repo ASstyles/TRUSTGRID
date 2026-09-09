@@ -33,6 +33,9 @@ export class CybersecurityModule implements SectorModule {
   }
 
   public validateMetadata(metadata: any): { valid: boolean; errors?: string[] } {
+    if (!metadata || typeof metadata !== 'object') {
+      return { valid: false, errors: ['metadata must be a non-null object'] };
+    }
     const errors: string[] = [];
     if (!metadata.deviceId) errors.push('deviceId is required');
     if (!metadata.hostname) errors.push('hostname is required');

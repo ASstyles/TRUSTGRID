@@ -41,7 +41,11 @@ export function createEducationRoutes(eduModule: EducationModule, db: DatabaseSe
   // POST /api/education/issue
   router.post('/issue', async (req, res) => {
     try {
-      const { institutionDid, studentDid, metadata, customId } = req.body;
+      const { institutionDid, studentDid, metadata, customId } = req.body || {};
+      if (!institutionDid || !studentDid || !metadata) {
+        return res.status(400).json({ success: false, error: 'institutionDid, studentDid, and metadata are required' });
+      }
+
       const validation = eduModule.validateMetadata(metadata);
       if (!validation.valid) {
         return res.status(400).json({ success: false, errors: validation.errors });

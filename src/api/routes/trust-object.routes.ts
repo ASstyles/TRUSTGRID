@@ -93,7 +93,12 @@ export function createTrustObjectRoutes(trustObjectService: TrustObjectService, 
   // POST /api/trust-objects/:id/tamper (Simulate tampering for demo)
   router.post('/:id/tamper', async (req, res) => {
     try {
-      const { modifiedMetadata } = req.body;
+      const existing = await trustObjectService.getTrustObject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: `Trust Object ${req.params.id} not found` });
+      }
+
+      const { modifiedMetadata } = req.body || {};
       trustObjectService.simulateTamper(req.params.id, modifiedMetadata || { tamperedField: 'UNAUTHORIZED_ALTERATION' });
       res.json({ success: true, message: `Tampering simulated for object ${req.params.id}` });
     } catch (err: any) {

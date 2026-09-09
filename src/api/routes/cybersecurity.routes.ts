@@ -43,7 +43,11 @@ export function createCybersecurityRoutes(secModule: CybersecurityModule, db: Da
   // POST /api/cybersecurity/register
   router.post('/register', async (req, res) => {
     try {
-      const { adminDid, metadata, customId } = req.body;
+      const { adminDid, metadata, customId } = req.body || {};
+      if (!adminDid || !metadata) {
+        return res.status(400).json({ success: false, error: 'adminDid and metadata are required' });
+      }
+
       const validation = secModule.validateMetadata(metadata);
       if (!validation.valid) {
         return res.status(400).json({ success: false, errors: validation.errors });

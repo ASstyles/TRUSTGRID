@@ -204,7 +204,11 @@ export class WalletService {
   public static signWithDid(did: string, data: string | Buffer, dbInstance?: DatabaseService): string {
     let privateKey = this.getPrivateKey(did);
     if (!privateKey) {
-      // Deterministically derive and persist test/demo identity if not yet provisioned in current db
+      // In production, unprovisioned identities must never be auto-derived
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Wallet private key not available for identity DID: ${did}`);
+      }
+      // In test and demo environments, deterministically derive and persist test identity
       const autoKeyPair = this.registerDeterministicIdentity(
         did,
         did.startsWith('did:trustgrid:usr:') ? 'INDIVIDUAL' : 'ORGANIZATION',
