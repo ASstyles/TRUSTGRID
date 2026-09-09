@@ -82,8 +82,8 @@ export class ConsortiumNode {
   private setupRoutes(): void {
     this.app.use(express.json({ limit: '5mb' }));
 
-    // 1. GET /status - Node identity, status, peers, and consensus status
-    this.app.get('/status', (_req: Request, res: Response) => {
+    // 1. GET /status & GET /blocks/status - Node identity, status, peers, and consensus status
+    const statusHandler = (_req: Request, res: Response) => {
       const lastBlock = this.ledgerNode.getLastBlock();
       const status = this.ledgerNode.getStatus();
       return res.json({
@@ -92,19 +92,27 @@ export class ConsortiumNode {
         name: this.name,
         role: this.role,
         status,
+        nodeStatus: status,
         port: this.port,
         did: this.ledgerNode.did,
         publicKey: this.ledgerNode.keyPair.publicKey,
         currentHeight: this.ledgerNode.getHeight(),
+        blockHeight: this.ledgerNode.getHeight(),
         latestBlockHash: lastBlock ? lastBlock.blockHash : null,
+        previousHash: lastBlock ? lastBlock.header.previousHash : null,
         peerNodes: this.peers,
         peersCount: this.peers.length,
         validatorsCount: this.peers.length + 1,
         quorumRequired: Math.ceil(((this.peers.length + 1) * 2) / 3),
         consensusStatus: this.consensusStatus,
+        consensusState: this.consensusStatus,
         lastConsensusDecision: this.lastConsensusDecision,
+        timestamp: new Date().toISOString(),
       });
-    });
+    };
+
+    this.app.get('/status', statusHandler);
+    this.app.get('/blocks/status', statusHandler);
 
     // 2. GET /blocks - All local blocks
     this.app.get('/blocks', (_req: Request, res: Response) => {
@@ -136,8 +144,8 @@ export class ConsortiumNode {
       });
     });
 
-    // 5. POST /propose - Propose candidate block, gossip to peers, achieve 2/3 majority, and commit
-    this.app.post('/propose', async (req: Request, res: Response) => {
+    // 5. POST /propose & POST /blocks/propose - Propose candidate block, gossip to peers, achieve 2/3 majority, and commit
+    const proposeHandler = async (req: Request, res: Response) => {
       if (this.ledgerNode.getStatus() !== 'ONLINE') {
         return res.status(503).json({
           success: false,
@@ -205,16 +213,26 @@ export class ConsortiumNode {
 
       for (const peerUrl of this.peers) {
         try {
-          const resp = await fetch(`${peerUrl}/validate`, {
+          // Attempt POST /blocks/receive first, with fallback to /validate
+          let resp = await fetch(`${peerUrl}/blocks/receive`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ candidateBlock }),
             signal: AbortSignal.timeout(2500),
           });
 
+          if (resp.status === 404) {
+            resp = await fetch(`${peerUrl}/validate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ candidateBlock }),
+              signal: AbortSignal.timeout(2500),
+            });
+          }
+
           if (resp.ok) {
             const data = (await resp.json()) as any;
-            if (data.vote === 'APPROVE' && data.endorsementVote) {
+            if ((data.vote === 'APPROVE' || data.valid === true) && data.endorsementVote) {
               votes.push(data.endorsementVote);
               validationDetails.push({ peer: peerUrl, vote: 'APPROVE' });
             } else {
@@ -229,7 +247,7 @@ export class ConsortiumNode {
         }
       }
 
-      // Step D: Evaluate majority consensus
+      // Step D: Evaluate majority consensus (2-of-3 majority rule)
       if (votes.length < quorumRequired) {
         this.consensusStatus = 'REJECTED';
         this.lastConsensusDecision = {
@@ -240,12 +258,13 @@ export class ConsortiumNode {
           blockHash: candidateBlock.blockHash,
           votesReceived: votes.length,
           votesRequired: quorumRequired,
-          reason: `Insufficient votes (${votes.length}/${quorumRequired})`,
+          reason: `Consensus failed: received ${votes.length} votes, required ${quorumRequired} for 2/3 majority`,
           timestamp: new Date().toISOString(),
         };
 
         return res.status(400).json({
           success: false,
+          consensus: 'REJECTED',
           consensusReached: false,
           error: `Consensus quorum failed: received ${votes.length} votes, required ${quorumRequired} for 2/3 majority`,
           votesReceived: votes.length,
@@ -274,12 +293,22 @@ export class ConsortiumNode {
       // Broadcast commit to all reachable peers
       for (const peerUrl of this.peers) {
         try {
-          const resp = await fetch(`${peerUrl}/commit`, {
+          let resp = await fetch(`${peerUrl}/blocks/commit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ block: committedBlock }),
             signal: AbortSignal.timeout(2500),
           });
+
+          if (resp.status === 404) {
+            resp = await fetch(`${peerUrl}/commit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ block: committedBlock }),
+              signal: AbortSignal.timeout(2500),
+            });
+          }
+
           if (resp.ok) {
             const cData = (await resp.json()) as any;
             if (cData.success) {
@@ -305,6 +334,7 @@ export class ConsortiumNode {
 
       return res.json({
         success: true,
+        consensus: 'CONFIRMED',
         consensusReached: true,
         message: `Block #${committedBlock.header.height} committed across ${committedNodes.length} nodes with ${votes.length}/${clusterSize} consensus majority`,
         block: committedBlock,
@@ -315,21 +345,26 @@ export class ConsortiumNode {
         committedNodes,
         validations: validationDetails,
       });
-    });
+    };
 
-    // 6. POST /validate - Validator peer independently validates candidate block
-    this.app.post('/validate', (req: Request, res: Response) => {
+    this.app.post('/propose', proposeHandler);
+    this.app.post('/blocks/propose', proposeHandler);
+
+    // 6. POST /validate & POST /blocks/receive - Validator peer independently validates candidate block
+    const receiveBlockHandler = (req: Request, res: Response) => {
       if (this.ledgerNode.getStatus() !== 'ONLINE') {
         return res.status(503).json({
+          valid: false,
           vote: 'REJECT',
           nodeId: this.nodeId,
           reason: `Node ${this.nodeId} is ${this.ledgerNode.getStatus()}`,
         });
       }
 
-      const candidateBlock: Block = req.body.candidateBlock;
+      const candidateBlock: Block = req.body.candidateBlock || req.body.block;
       if (!candidateBlock || !candidateBlock.header) {
         return res.status(400).json({
+          valid: false,
           vote: 'REJECT',
           nodeId: this.nodeId,
           reason: 'Missing candidateBlock in payload',
@@ -349,10 +384,24 @@ export class ConsortiumNode {
         };
 
         return res.status(400).json({
+          valid: false,
           vote: 'REJECT',
           nodeId: this.nodeId,
           reason: verification.reason,
         });
+      }
+
+      // Transaction leaf verification
+      for (const tx of candidateBlock.transactions || []) {
+        const computedLeaf = CryptoService.sha256(`${tx.txId}:${tx.contentHash}:${tx.timestamp}`);
+        if (tx.merkleLeaf !== computedLeaf) {
+          return res.status(400).json({
+            valid: false,
+            vote: 'REJECT',
+            nodeId: this.nodeId,
+            reason: `Transaction leaf tampered in tx ${tx.txId}: expected ${computedLeaf}, got ${tx.merkleLeaf}`,
+          });
+        }
       }
 
       // Produce signed vote
@@ -371,21 +420,27 @@ export class ConsortiumNode {
         };
 
         return res.json({
+          valid: true,
           vote: 'APPROVE',
           nodeId: this.nodeId,
           endorsementVote,
+          signature: endorsementVote.signature,
         });
       } catch (err: any) {
         return res.status(500).json({
+          valid: false,
           vote: 'REJECT',
           nodeId: this.nodeId,
           reason: `Signing error: ${err.message}`,
         });
       }
-    });
+    };
 
-    // 7. POST /commit - Peer receives committed block with certificate and commits locally
-    this.app.post('/commit', (req: Request, res: Response) => {
+    this.app.post('/validate', receiveBlockHandler);
+    this.app.post('/blocks/receive', receiveBlockHandler);
+
+    // 7. POST /commit & POST /blocks/commit - Peer receives committed block with certificate and commits locally
+    const commitHandler = (req: Request, res: Response) => {
       if (this.ledgerNode.getStatus() !== 'ONLINE' && this.ledgerNode.getStatus() !== 'SYNCING') {
         return res.status(503).json({
           success: false,
@@ -431,10 +486,13 @@ export class ConsortiumNode {
         height: this.ledgerNode.getHeight(),
         blockHash: block.blockHash,
       });
-    });
+    };
+
+    this.app.post('/commit', commitHandler);
+    this.app.post('/blocks/commit', commitHandler);
 
     // 8. POST /sync - Reconcile local ledger by fetching missing blocks from peers
-    this.app.post('/sync', async (_req: Request, res: Response) => {
+    this.app.post('/sync', async (req: Request, res: Response) => {
       const initialHeight = this.ledgerNode.getHeight();
       let bestPeerBlocks: Block[] = [];
 
@@ -454,12 +512,23 @@ export class ConsortiumNode {
         }
       }
 
-      if (bestPeerBlocks.length <= initialHeight + 1) {
+      const integrity = this.ledgerNode.verifyLocalChainIntegrity();
+      const needsSync = !integrity.valid || req.body?.force === true || bestPeerBlocks.length > initialHeight + 1;
+
+      if (!needsSync) {
         return res.json({
           success: true,
           nodeId: this.nodeId,
-          message: 'Node is already at latest cluster height',
+          message: 'Node is already at latest cluster height and chain integrity is valid',
           height: initialHeight,
+        });
+      }
+
+      if (bestPeerBlocks.length === 0) {
+        return res.status(503).json({
+          success: false,
+          nodeId: this.nodeId,
+          error: 'No online peers available to reconcile chain from',
         });
       }
 
@@ -527,6 +596,13 @@ export class ConsortiumNode {
       if (!this.server) {
         this.ledgerNode.close();
         return resolve();
+      }
+      try {
+        if (typeof (this.server as any).closeAllConnections === 'function') {
+          (this.server as any).closeAllConnections();
+        }
+      } catch {
+        // Ignore connection close errors
       }
       this.server.close(() => {
         this.server = null;

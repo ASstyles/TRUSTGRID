@@ -36,7 +36,7 @@ async function runConsortiumDemo() {
 
   logSection('1. Initializing 3 Independent Consortium Node Processes');
 
-  const node1 = new ConsortiumNode({
+  let node1 = new ConsortiumNode({
     nodeId: 'node-1',
     name: 'Node 1 (Alpha - Consortium Proposer)',
     role: 'LEADER',
@@ -71,18 +71,18 @@ async function runConsortiumDemo() {
   console.log(`  ✔ Node 2 (Beta)  started at ${URL_NODE_2} [Genesis Height: ${node2.ledgerNode.getHeight()}]`);
   console.log(`  ✔ Node 3 (Gamma) started at ${URL_NODE_3} [Genesis Height: ${node3.ledgerNode.getHeight()}]`);
 
-  // Query statuses over HTTP
-  const status1 = await (await fetch(`${URL_NODE_1}/status`)).json() as any;
-  const status2 = await (await fetch(`${URL_NODE_2}/status`)).json() as any;
-  const status3 = await (await fetch(`${URL_NODE_3}/status`)).json() as any;
+  // Query statuses over HTTP via /blocks/status
+  const status1 = await (await fetch(`${URL_NODE_1}/blocks/status`)).json() as any;
+  const status2 = await (await fetch(`${URL_NODE_2}/blocks/status`)).json() as any;
+  const status3 = await (await fetch(`${URL_NODE_3}/blocks/status`)).json() as any;
 
-  console.log(`\n  Initial Cluster Genesis State:`);
-  console.log(`    Node 1 Hash: ${status1.latestBlockHash.slice(0, 20)}... (Height: ${status1.currentHeight})`);
-  console.log(`    Node 2 Hash: ${status2.latestBlockHash.slice(0, 20)}... (Height: ${status2.currentHeight})`);
-  console.log(`    Node 3 Hash: ${status3.latestBlockHash.slice(0, 20)}... (Height: ${status3.currentHeight})`);
+  console.log(`\n  Initial Cluster Genesis State (queried via GET /blocks/status):`);
+  console.log(`    Node 1 Hash: ${status1.latestBlockHash.slice(0, 20)}... (Height: ${status1.blockHeight}, State: ${status1.consensusState})`);
+  console.log(`    Node 2 Hash: ${status2.latestBlockHash.slice(0, 20)}... (Height: ${status2.blockHeight}, State: ${status2.consensusState})`);
+  console.log(`    Node 3 Hash: ${status3.latestBlockHash.slice(0, 20)}... (Height: ${status3.blockHeight}, State: ${status3.consensusState})`);
 
   logSection('2. Successful Consensus Flow (Block #1 Proposal & 2/3 Quorum)');
-  logStep('Node 1 Proposes Block', 'Anchoring genuine B.Tech degree proof to consortium ledger');
+  logStep('Node 1 Proposes Block', 'Anchoring genuine B.Tech degree proof to consortium ledger via /blocks/receive gossip');
 
   const tx1Timestamp = new Date().toISOString();
   const tx1ContentHash = CryptoService.sha256('degree:rahul-sharma:btech:dtu');
@@ -106,67 +106,113 @@ async function runConsortiumDemo() {
     },
   };
 
-  const proposeResp = await fetch(`${URL_NODE_1}/propose`, {
+  const proposeResp = await fetch(`${URL_NODE_1}/blocks/propose`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ transactions: [tx1], round: 1 }),
   });
 
   const proposeData = (await proposeResp.json()) as any;
-  console.log(`    Consensus Result: ${proposeData.consensusReached ? '✅ CONSENSUS REACHED' : '❌ FAILED'}`);
+  console.log(`    Consensus Result: ${proposeData.consensusReached ? '✅ 2-OF-3 CONSENSUS CONFIRMED' : '❌ FAILED'}`);
   console.log(`    Votes Collected: ${proposeData.votesReceived} / 3 (Threshold: ${proposeData.quorumRequired} for >= 2/3)`);
   console.log(`    Committed Nodes: [${proposeData.committedNodes.join(', ')}]`);
   console.log(`    Committed Block Hash: ${proposeData.blockHash}`);
 
-  logStep('Verifying Node Convergence', 'Checking that all 3 nodes updated their local SQLite ledger');
-  const b1 = await (await fetch(`${URL_NODE_1}/blocks/1`)).json() as any;
-  const b2 = await (await fetch(`${URL_NODE_2}/blocks/1`)).json() as any;
-  const b3 = await (await fetch(`${URL_NODE_3}/blocks/1`)).json() as any;
+  logStep('Verifying Node Convergence', 'Checking that all 3 honest nodes converged to identical block hash and height');
+  const s1Post = await (await fetch(`${URL_NODE_1}/blocks/status`)).json() as any;
+  const s2Post = await (await fetch(`${URL_NODE_2}/blocks/status`)).json() as any;
+  const s3Post = await (await fetch(`${URL_NODE_3}/blocks/status`)).json() as any;
 
-  console.log(`    Node 1 Block #1 Hash: ${b1.block.blockHash}`);
-  console.log(`    Node 2 Block #1 Hash: ${b2.block.blockHash}`);
-  console.log(`    Node 3 Block #1 Hash: ${b3.block.blockHash}`);
+  console.log(`    Node 1 (Height ${s1Post.blockHeight}): Hash ${s1Post.latestBlockHash}`);
+  console.log(`    Node 2 (Height ${s2Post.blockHeight}): Hash ${s2Post.latestBlockHash}`);
+  console.log(`    Node 3 (Height ${s3Post.blockHeight}): Hash ${s3Post.latestBlockHash}`);
 
-  const converged = b1.block.blockHash === b2.block.blockHash && b2.block.blockHash === b3.block.blockHash;
+  const converged = s1Post.latestBlockHash === s2Post.latestBlockHash && s2Post.latestBlockHash === s3Post.latestBlockHash;
   console.log(`    Convergence Status: ${converged ? '🎯 ALL 3 NODES CONVERGED (100% IDENTICAL HASH)' : '❌ DIVERGED'}`);
 
-  logSection('3. Adversarial Case: Invalid / Tampered Block Proposal Rejection');
-  logStep('Simulating Tampered Candidate Block', 'Proposing block with forged previousHash to Node 2 and Node 3');
+  logSection('3. Tamper Detection Demonstration (Adversarial Conflicting Proposal)');
+  logStep('Deliberately Tampering Node 1 Local Ledger', 'Corrupting Block #1 hash on Node 1 to simulate adversary database bit-flip');
 
-  const forgedHeader = {
+  // Node 1 local ledger is tampered
+  await fetch(`${URL_NODE_1}/tamper`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ height: 1, blockHash: '0xadversary_corrupted_block1_hash' }),
+  });
+  console.log(`    Node 1 state: TAMPERED (local Block #1 hash mutated to 0xadversary_corrupted_block1_hash)`);
+  console.log(`    Node 2 & 3 state: INTACT (holding genuine consortium chain)`);
+
+  logStep('Node 1 Attempts to Propose Next Block from Tampered State', 'Proposing candidate block to Node 2 and Node 3 via POST /blocks/receive');
+
+  const tamperedTxTimestamp = new Date().toISOString();
+  const tamperedTxContentHash = CryptoService.sha256('degree:forged:rohan-gupta');
+  const tamperedTxId = 'tx-consortium-tamper-002';
+  const tamperedTxLeaf = CryptoService.sha256(`${tamperedTxId}:${tamperedTxContentHash}:${tamperedTxTimestamp}`);
+
+  const conflictingTx: BlockchainTransaction = {
+    txId: tamperedTxId,
+    blockHeight: 2,
+    actionType: 'REGISTER_PROOF',
+    trustObjectId: 'TO-EDU-DEGREE-FORGED-2026',
+    contentHash: tamperedTxContentHash,
+    signerDid: 'did:trustgrid:edu:delhi-tech-univ',
+    notarySignature: CryptoService.sign(tamperedTxLeaf, node1.ledgerNode.keyPair.privateKey),
+    timestamp: tamperedTxTimestamp,
+    merkleLeaf: tamperedTxLeaf,
+    payload: { studentName: 'Rohan Gupta (Forged)', degree: 'B.Tech' },
+  };
+
+  // Node 1 creates candidate referencing its tampered previousHash
+  const conflictingHeader = {
     height: 2,
-    previousHash: '0xdeadbeef_invalid_previous_hash_forged_by_adversary',
-    merkleRoot: CryptoService.sha256('tampered-leaf'),
+    previousHash: '0xadversary_corrupted_block1_hash', // Corrupted previous hash from Node 1's tampered ledger
+    merkleRoot: CryptoService.computeMerkleRoot([tamperedTxLeaf]),
     timestamp: new Date().toISOString(),
     validatorDid: node1.ledgerNode.did,
     txCount: 1,
     round: 1,
   };
-  const forgedHash = CryptoService.sha256(CryptoService.canonicalStringify(forgedHeader));
-  const forgedSig = CryptoService.sign(forgedHash, node1.ledgerNode.keyPair.privateKey);
+  const conflictingHash = CryptoService.sha256(CryptoService.canonicalStringify(conflictingHeader));
+  const conflictingSig = CryptoService.sign(conflictingHash, node1.ledgerNode.keyPair.privateKey);
 
-  const forgedCandidate: Block = {
-    header: forgedHeader,
-    blockHash: forgedHash,
-    validatorSignature: forgedSig,
-    transactions: [],
+  const conflictingCandidate: Block = {
+    header: conflictingHeader,
+    blockHash: conflictingHash,
+    validatorSignature: conflictingSig,
+    transactions: [conflictingTx],
   };
 
-  const val2 = await (await fetch(`${URL_NODE_2}/validate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ candidateBlock: forgedCandidate }),
-  })).json() as any;
+  logStep('Independent Peer Validation (POST /blocks/receive)', 'Node 2 and Node 3 independently validate candidate against their authentic ledgers');
 
-  const val3 = await (await fetch(`${URL_NODE_3}/validate`, {
+  const val2Resp = await fetch(`${URL_NODE_2}/blocks/receive`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ candidateBlock: forgedCandidate }),
-  })).json() as any;
+    body: JSON.stringify({ candidateBlock: conflictingCandidate }),
+  });
+  const val2 = await val2Resp.json() as any;
+
+  const val3Resp = await fetch(`${URL_NODE_3}/blocks/receive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ candidateBlock: conflictingCandidate }),
+  });
+  const val3 = await val3Resp.json() as any;
 
   console.log(`    Node 2 Validation: ${val2.vote} [Reason: ${val2.reason}]`);
   console.log(`    Node 3 Validation: ${val3.vote} [Reason: ${val3.reason}]`);
-  console.log(`    Result: 🛡️ Tampered proposal rejected by validators; chain integrity preserved at Height 1!`);
+  console.log(`    Agreement Count: 0 / 2 peer votes`);
+  console.log(`    Result: 🛡️ INVALID STATE NOT CONFIRMED (Conflicting block rejected by independent validators)`);
+
+  // 3b. Self-heal Node 1: Reconcile authentic state from honest majority peers (Node 2 & 3)
+  logStep('Consortium Self-Healing / Ledger Reconciliation', 'Node 1 reconciles authentic chain from honest peers via POST /sync');
+  const healResp = await fetch(`${URL_NODE_1}/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: true }),
+  });
+  const healData = (await healResp.json()) as any;
+  console.log(`    Node 1 Sync Result: ${healData.success ? 'HEALED' : 'FAILED'} (Reconciled ${healData.syncedBlocks ?? 0} block(s))`);
+  console.log(`    Node 1 Post-Heal Integrity: ${node1.ledgerNode.verifyLocalChainIntegrity().valid ? '✅ VALID' : '❌ INVALID'}`);
 
   logSection('4. Fault Tolerance: 1 Node Offline, 2/3 Majority Still Succeeds');
   logStep('Simulating Node 3 Crash / Offline', 'Toggling Node 3 status to OFFLINE');

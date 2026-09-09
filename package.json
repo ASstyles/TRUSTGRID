@@ -12,6 +12,10 @@
     "build": "npm run build:server && npm run build:client",
     "seed": "tsx src/database/seed.ts",
     "demo:consortium": "tsx src/core/blockchain/demo-consortium.ts",
+    "node:1": "tsx src/core/blockchain/node-process.ts --id node-1 --port 4101 --peers http://localhost:4102,http://localhost:4103",
+    "node:2": "tsx src/core/blockchain/node-process.ts --id node-2 --port 4102 --peers http://localhost:4101,http://localhost:4103",
+    "node:3": "tsx src/core/blockchain/node-process.ts --id node-3 --port 4103 --peers http://localhost:4101,http://localhost:4102",
+    "benchmark": "tsx src/tests/benchmark.ts",
     "test": "tsx --test --test-concurrency=1 src/tests/*.test.ts",
     "start": "tsx src/server.ts"
   },

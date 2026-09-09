@@ -10,7 +10,7 @@ function parseArgs(): {
   const args = process.argv.slice(2);
   let nodeId = process.env.NODE_ID || 'node-1';
   let port = Number(process.env.PORT || process.env.NODE_PORT) || 4101;
-  let peersStr = process.env.PEER_NODES || process.env.PEERS || '';
+  let peersStr = process.env.PEER_URLS || process.env.PEER_NODES || process.env.PEERS || '';
   let name = process.env.NODE_NAME;
   let dbPath = process.env.DATABASE_FILE || process.env.DB_PATH;
 
@@ -19,7 +19,7 @@ function parseArgs(): {
       nodeId = args[++i];
     } else if (args[i] === '--port' && args[i + 1]) {
       port = Number(args[++i]);
-    } else if (args[i] === '--peers' && args[i + 1]) {
+    } else if ((args[i] === '--peers' || args[i] === '--peer-urls') && args[i + 1]) {
       peersStr = args[++i];
     } else if (args[i] === '--name' && args[i + 1]) {
       name = args[++i];
@@ -53,6 +53,10 @@ async function main() {
 
   await node.start();
   console.log(`✅ [${config.nodeId}] Node online and listening at http://localhost:${config.port}`);
+  console.log(`   ↳ Status Endpoint:  GET  http://localhost:${config.port}/blocks/status`);
+  console.log(`   ↳ Receive Endpoint: POST http://localhost:${config.port}/blocks/receive`);
+  console.log(`   ↳ Propose Endpoint: POST http://localhost:${config.port}/blocks/propose`);
+  console.log(`   ↳ Verify Endpoint:  GET  http://localhost:${config.port}/verify`);
 
   const shutdown = async () => {
     console.log(`\n🛑 Shutting down node [${config.nodeId}]...`);
