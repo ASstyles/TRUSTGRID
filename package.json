@@ -11,6 +11,7 @@
     "build:client": "npm --prefix client run build",
     "build": "npm run build:server && npm run build:client",
     "seed": "tsx src/database/seed.ts",
+    "demo:consortium": "tsx src/core/blockchain/demo-consortium.ts",
     "test": "tsx --test --test-concurrency=1 src/tests/*.test.ts",
     "start": "tsx src/server.ts"
   },
