@@ -59,8 +59,8 @@ export interface BlockchainProof {
   merkleRoot: string;
   notarySignature: string;
   previousBlockHash: string;
-  endorsementsCount?: number;
-  validatorSignatures?: string[];
+  endorsementsCount: number;
+  validatorSignatures: string[];
 }
 
 export interface VerificationCheck {
