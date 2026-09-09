@@ -1,0 +1,47 @@
+name: TRUSTGRID CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build, Test & Benchmark (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install server dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm --prefix client ci
+
+      - name: Build server (TypeScript check)
+        run: npm run build:server
+
+      - name: Build client (Vite production bundle)
+        run: npm --prefix client run build
+
+      - name: Run test suite (122 tests across 8 categories)
+        run: npm test
+
+      - name: Run 3-node consortium consensus demo
+        run: npm run demo:consortium
+
+      - name: Run cryptographic verification benchmark (100 iterations)
+        run: npm run benchmark
