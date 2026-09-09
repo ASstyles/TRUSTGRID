@@ -1,4 +1,4 @@
-# TRUSTGRID — Institutional Decentralized Trust Infrastructure
+# TRUSTGRID — Universal Institutional Trust Infrastructure
 > **Smart India Hackathon 2026 — Problem Statement 26194 (Student Innovation: Blockchain & Cybersecurity)**
 > 
 > *"Don't trust the database. Verify the proof."*
@@ -22,6 +22,32 @@ Today, every major economic sector operates an isolated, fragile island of trust
 * **Cybersecurity teams** struggle to establish tamper-evident cryptographic baselines for critical infrastructure devices and SCADA endpoints.
 
 **TRUSTGRID** solves this structural vulnerability not by creating four unrelated applications, but by inventing a unified, sector-agnostic protocol: the **Trust Object Protocol (TOP)**.
+
+---
+
+## 1.1 Prior Art & Protocol Differentiation
+
+### Honest Protocol Attribution & Landscape Comparison
+TRUSTGRID does **not** claim to invent blockchain-based digital credentials, public key infrastructure (PKI), or hash-linked ledgers. Foundational research, open standards, and sector-specific tools exist across individual verticals:
+
+| Sector | Existing Prior Art / Standards | Scope & Architectural Focus | What They Lack vs. TRUSTGRID TOP |
+|---|---|---|---|
+| **🎓 Education** | **Blockcerts** (MIT), **OpenCerts** (GovTech Singapore) | Single-institution academic diplomas, Ethereum / W3C VC JSON-LD schemas. | Confined to academic transcripts. Lacks generic multi-hop provenance graphs, on-chain revocation accumulators, cross-sector composability, and active risk scoring. |
+| **📦 Supply Chain** | **TradeTrust** (IMDA Singapore), **IBM Food Trust** | Electronic Bills of Lading (eBL), EPCIS shipping events, Hyperledger Fabric/Ethereum. | Trade-document or cold-chain specific data structures. Incompatible with identity passports or device integrity baselines. |
+| **⚖️ Legal Evidence** | **OpenAttestation**, **Guardian Evidence** | PDF/document attestation, notarized digital file timestamping. | Point-in-time timestamping without verifiable custodian handover graphs or dynamic spoliation alert engines. |
+| **🛡️ Cybersecurity** | **Sigstore** (Linux Foundation), **in-toto**, **SLSA** | Software supply chain artifact signing, Rekor transparency log. | Focused on developer binary artifacts (containers, Git commits). Not designed for institutional assets, physical custody, or non-technical verifiable credentials. |
+
+### The Core Architectural Problem: Fragmented Trust Silos
+Existing standards are **vertical-specific silos**: an organization managing university degrees, physical pharmaceuticals, legal evidence, and SCADA infrastructure firmware must currently deploy, operate, and audit four completely separate cryptographic stacks, schemas, and verification clients.
+
+### The Innovation: The Trust Object Protocol (TOP)
+TRUSTGRID introduces the **Trust Object Protocol (TOP)** as a universal, sector-agnostic institutional abstraction layer:
+1. **Universal Trust Object (TO) Envelope**: A single canonical JSON schema (RFC 8785) wrapping identity, payload content hash, dual Ed25519 signatures, Merkle leaf proof, and multi-node consensus endorsements.
+2. **First-Class Provenance Graph**: Every Trust Object embeds an immutable, cryptographic chain of custody DAG where each state transition must be counter-signed by the transferring custodian and verified on-chain.
+3. **Cross-Sector Trust Passport**: Subjects aggregate credentials across domains into a single portable passport featuring salted attribute commitments for privacy-preserving selective disclosure.
+4. **Deterministic Heuristic Risk Engine**: Real-time explainable risk assessment evaluating verification velocity, credential cloning, Sybil DID patterns, and baseline divergence—without black-box ML.
+5. **Decoupled Consensus Substrate**: TOP operates identically over a local multi-node consortium prototype (for zero-friction evaluation) and enterprise production backends like Hyperledger Fabric.
+
 
 ```
                        TRUSTGRID
@@ -118,8 +144,12 @@ When any Trust Object is presented to TRUSTGRID, the exact same verification eng
 
 ## 4. Architectural Truth & Blockchain Substrate Realism
 
-* **MVP:** TRUSTGRID currently demonstrates the trust protocol using a cryptographically verifiable consortium-style ledger with chained blocks, Merkle roots, and validator signatures running locally in-process.
-* **Production path:** The blockchain layer is abstracted behind `BlockchainAdapter` so the same application/protocol layer can connect to a multi-organization permissioned network such as **Hyperledger Fabric** with zero application code refactoring.
+* **Local 3-Node Consortium Prototype (Current Working State):**
+  TRUSTGRID features an inspectable, working 3-node consortium network (`node-1` on port 4101, `node-2` on port 4102, `node-3` on port 4103). Each node runs as an independent process with its own private SQLite ledger, its own Ed25519 identity keypair, its own HTTP API (`/blocks/propose`, `/blocks/receive`, `/blocks/status`, `/sync`), and executes deterministic 2-of-3 majority consensus before committing blocks. You can launch and inspect all 3 nodes individually via `npm run node:1`, `npm run node:2`, `npm run node:3`, or run the end-to-end consensus demo via `npm run demo:consortium`.
+* **Production Deployment Roadmap (Hyperledger Fabric):**
+  The blockchain substrate is cleanly decoupled through the `BlockchainAdapter` interface. In production enterprise deployments, the application connects to a multi-organization **Hyperledger Fabric** network using Raft crash fault-tolerant ordering and channel-isolated ledgers. The smart contract logic is pre-implemented in Go chaincode (`contracts/hyperledger-fabric/trustgrid_cc.go`) and validated with 10 unit tests.
+* **Consensus Integrity vs. Public Blockchain Overhead:**
+  TRUSTGRID is designed for institutional consortia (e.g., Higher Education Consortium, National Pharma Logistics, Inter-Court Judicial Network, National CERT). It deliberately avoids energy-wasting Proof-of-Work or token volatility, employing permissioned deterministic majority endorsement with Ed25519 threshold certificates.
 
 ---
 
@@ -212,6 +242,20 @@ npm run dev
 docker compose up --build
 ```
 
+### Option D: Local 3-Node Consortium Consensus Demo & Verification Benchmark
+```bash
+# 1. Run the interactive 3-node consortium consensus and fault tolerance demo
+npm run demo:consortium
+
+# 2. (Optional) Run the 3 independent node daemons in separate terminal windows:
+npm run node:1   # Node Alpha on port 4101
+npm run node:2   # Node Beta on port 4102
+npm run node:3   # Node Gamma on port 4103
+
+# 3. Run the 100-iteration cryptographic verification latency benchmark
+npm run benchmark
+```
+
 ---
 
 ## 10. Automated Test Validation & Verification Suite
@@ -236,7 +280,7 @@ npm test
 | 1 | **Multi-Node Consensus & Cluster Fault Tolerance** | **37 tests** | 3-node independent process HTTP consensus, gossip candidate proposals, 2/3 majority consensus ($Q \ge 2$), Byzantine rejection of invalid/tampered proposals, node crash recovery, network partition tolerance, and peer synchronization catchup. |
 | 2 | **Blockchain Integrity & Tamper Detection** | **23 tests** | Sequential SHA-256 block linking (`previousHash`), binary Merkle tree recomputation, cross-node divergence detection, and cryptographic spoliation alerts. |
 | 3 | **Sector Flagship Protocol Validation** | **12 tests** | Full lifecycle verification across all 4 sectors: Academic degrees (Education), Pharma cold-chain batches (Supply Chain), Digital forensic exhibits (Legal), and SCADA device firmware baselines (Cybersecurity). |
-| 4 | **Privacy & Cryptographic Selective Disclosure** | **12 tests** | Salted Pedersen commitments, attribute blinding, zero-knowledge numeric predicate proofs (e.g. CGPA $\ge 7.5$), and dynamic identity reputation scoring. |
+| 4 | **Privacy & Cryptographic Selective Disclosure** | **12 tests** | Salted cryptographic commitments, attribute blinding, selective disclosure numeric predicate proofs (e.g. CGPA $\ge 7.5$), and dynamic identity reputation scoring. |
 | 5 | **Production Hyperledger Fabric Smart Contract** | **10 tests** | Enterprise Go chaincode (`trustgrid_cc.go`) methods, World State read/writes, endorsement policies, and ledger integrity verification. |
 | 6 | **Decentralized Identity & Encrypted Keystores** | **10 tests** | Ed25519 signing/verification, RFC 8785 canonical serialization, AES-256-GCM encrypted keystore management, and persistent keypair survival across simulated server restarts. |
 | 7 | **Risk Engine & Anomaly Detection** | **11 tests** | Explainable Trust Risk Engine factor scoring (0–100), verification velocity spikes, Sybil cross-DID credential duplication, and SCADA firmware drift detection. |
