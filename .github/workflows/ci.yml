@@ -37,7 +37,7 @@ jobs:
       - name: Build client (Vite production bundle)
         run: npm --prefix client run build
 
-      - name: Run test suite (122 tests across 8 categories)
+      - name: Run test suite (132 tests across 9 categories)
         run: npm test
 
       - name: Run 3-node consortium consensus demo

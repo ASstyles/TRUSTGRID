@@ -220,7 +220,7 @@ npm --prefix client install
 # 3. Seed database with 4 Flagship Scenarios
 npm run seed
 
-# 4. Run automated test suite (122 tests)
+# 4. Run automated test suite (132 tests)
 npm test
 
 # 5. Launch unified server
@@ -262,12 +262,12 @@ npm run benchmark
 
 ```
 ================================================================================
-TEST VALIDATION: 122 tests | 122 passed | 0 failed | 100% pass rate
-Execution Time: ~5.4s (via npm test / tsx --test --test-concurrency=1 src/tests/*.test.ts)
+TEST VALIDATION: 132 tests | 132 passed | 0 failed | 100% pass rate
+Execution Time: ~5.6s (via npm test / tsx --test --test-concurrency=1 src/tests/*.test.ts)
 ================================================================================
 ```
 
-TRUSTGRID features a comprehensive automated test suite of **122 automated tests** covering all protocol invariants, consensus mechanisms, tamper detection, sector modules, and cryptographic defenses. Every test executes without mocking the core cryptography or SQLite database engine.
+TRUSTGRID features a comprehensive automated test suite of **132 automated tests** covering all protocol invariants, consensus mechanisms, tamper detection, sector modules, and cryptographic defenses. Every test executes without mocking the core cryptography or SQLite database engine.
 
 ```bash
 npm test
@@ -285,7 +285,8 @@ npm test
 | 6 | **Decentralized Identity & Encrypted Keystores** | **10 tests** | Ed25519 signing/verification, RFC 8785 canonical serialization, AES-256-GCM encrypted keystore management, and persistent keypair survival across simulated server restarts. |
 | 7 | **Risk Engine & Anomaly Detection** | **11 tests** | Explainable Trust Risk Engine factor scoring (0–100), verification velocity spikes, Sybil cross-DID credential duplication, and SCADA firmware drift detection. |
 | 8 | **End-to-End System Health & Verification Pipeline** | **7 tests** | Comprehensive health diagnostics, table schemas, and full TOP lifecycle (Issue → Anchor → Verify Authentic → Tamper → Verify Tampered → Revoke). |
-| **TOTAL** | **All 8 Real Categories** | **122 tests** | **122 passed, 0 failed, 100% pass rate** |
+| 9 | **Live Consortium Network & Quorum Verification** | **10 tests** | Live HTTP status polling across ports 4101/4102/4103, 2/3 majority quorum calculation ($Q \ge 2$), fault tolerance under 1 node offline, dynamic quorum loss detection, live block height synchronization, and zero private key exposure. |
+| **TOTAL** | **All 9 Real Categories** | **132 tests** | **132 passed, 0 failed, 100% pass rate** |
 
 ---
 
@@ -444,6 +445,19 @@ npm test
   4. Scenario 2 (Supply Chain): Genuine vs Counterfeit Batch
   5. Scenario 3 (Legal Evidence): Genuine vs Tampered Forensics
   6. Scenario 4 (Cybersecurity): Clean Gateway vs Compromised SCADA Device
+
+#### 9. Live Consortium Network & Quorum Verification (10 tests)
+* **`network_status.test.ts` (10 tests)**:
+  1. All 3 nodes online: Network reports HEALTHY with 3/3 quorum and READY consensus
+  2. One node offline: Network reports DEGRADED with 2/3 nodes online
+  3. Quorum still available with 2 of 3 nodes online (2/3 majority preserved)
+  4. Quorum lost when fewer than 2 nodes are online (e.g. 1/3 available)
+  5. Correct block height reporting across nodes
+  6. Correct node roles assigned: Alpha is PROPOSER, Beta and Gamma are VALIDATORS
+  7. Unreachable/unresponsive node port is handled safely without throwing
+  8. Security: Network Status API does not expose private keys, seeds, or internal secrets
+  9. Real HTTP query to `/api/network/status` detects running node on port 4102 as ONLINE and unstarted nodes as OFFLINE
+  10. Toggling node status via `POST /api/network/nodes/beta/toggle` sets node OFFLINE dynamically
 
 ---
 
