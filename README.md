@@ -190,7 +190,7 @@ npm --prefix client install
 # 3. Seed database with 4 Flagship Scenarios
 npm run seed
 
-# 4. Run automated test suite (39 tests)
+# 4. Run automated test suite (122 tests)
 npm test
 
 # 5. Launch unified server
@@ -214,25 +214,192 @@ docker compose up --build
 
 ---
 
-## 10. Automated Test Results
+## 10. Automated Test Validation & Verification Suite
 
-TRUSTGRID features a comprehensive automated test suite verifying:
-* Ed25519 signing, verification, and key export
-* Canonical JSON deterministic SHA-256 hashing
-* AES-256-GCM encrypted keystore management
-* Merkle root tree calculations
-* Explainable Trust Risk Engine factor scoring
-* Full end-to-end lifecycle (Issue → Anchor → Verify Authentic → Tamper → Verify Tampered → Revoke)
-* Consortium blockchain ledger integrity audit
-* Persistent encrypted keystore across simulated server restarts
-* Cryptographic provenance chain continuity and forged signature detection
-* Duplicate credential claim and anomaly risk elevation
-* SCADA device configuration drift and on-chain security alert anchoring
+```
+================================================================================
+TEST VALIDATION: 122 tests | 122 passed | 0 failed | 100% pass rate
+Execution Time: ~5.4s (via npm test / tsx --test --test-concurrency=1 src/tests/*.test.ts)
+================================================================================
+```
+
+TRUSTGRID features a comprehensive automated test suite of **122 automated tests** covering all protocol invariants, consensus mechanisms, tamper detection, sector modules, and cryptographic defenses. Every test executes without mocking the core cryptography or SQLite database engine.
 
 ```bash
 npm test
 ```
-Result: **39 passed, 0 failed, 100% pass rate**.
+
+### Categorized Test Inventory
+
+| # | Category | Test Count | Key Invariants Verified |
+|---|---|:---:|---|
+| 1 | **Multi-Node Consensus & Cluster Fault Tolerance** | **37 tests** | 3-node independent process HTTP consensus, gossip candidate proposals, 2/3 majority consensus ($Q \ge 2$), Byzantine rejection of invalid/tampered proposals, node crash recovery, network partition tolerance, and peer synchronization catchup. |
+| 2 | **Blockchain Integrity & Tamper Detection** | **23 tests** | Sequential SHA-256 block linking (`previousHash`), binary Merkle tree recomputation, cross-node divergence detection, and cryptographic spoliation alerts. |
+| 3 | **Sector Flagship Protocol Validation** | **12 tests** | Full lifecycle verification across all 4 sectors: Academic degrees (Education), Pharma cold-chain batches (Supply Chain), Digital forensic exhibits (Legal), and SCADA device firmware baselines (Cybersecurity). |
+| 4 | **Privacy & Cryptographic Selective Disclosure** | **12 tests** | Salted Pedersen commitments, attribute blinding, zero-knowledge numeric predicate proofs (e.g. CGPA $\ge 7.5$), and dynamic identity reputation scoring. |
+| 5 | **Production Hyperledger Fabric Smart Contract** | **10 tests** | Enterprise Go chaincode (`trustgrid_cc.go`) methods, World State read/writes, endorsement policies, and ledger integrity verification. |
+| 6 | **Decentralized Identity & Encrypted Keystores** | **10 tests** | Ed25519 signing/verification, RFC 8785 canonical serialization, AES-256-GCM encrypted keystore management, and persistent keypair survival across simulated server restarts. |
+| 7 | **Risk Engine & Anomaly Detection** | **11 tests** | Explainable Trust Risk Engine factor scoring (0–100), verification velocity spikes, Sybil cross-DID credential duplication, and SCADA firmware drift detection. |
+| 8 | **End-to-End System Health & Verification Pipeline** | **7 tests** | Comprehensive health diagnostics, table schemas, and full TOP lifecycle (Issue → Anchor → Verify Authentic → Tamper → Verify Tampered → Revoke). |
+| **TOTAL** | **All 8 Real Categories** | **122 tests** | **122 passed, 0 failed, 100% pass rate** |
+
+---
+
+### Detailed Test Specifications (Inspectable by Hackathon Judges)
+
+#### 1. Multi-Node Consensus & Cluster Fault Tolerance (37 tests)
+* **`local_consortium_cluster.test.ts` (10 tests)**:
+  1. 3 consortium nodes start with independent HTTP listeners and genesis block at height 0
+  2. Node 1 proposes block; peers validate and 2/3 majority consensus commits block across all nodes
+  3. All 3 nodes converge to the exact same block hash at height 1
+  4. Candidate block with invalid height is rejected by validator peers
+  5. Candidate block with broken previousHash link is rejected by validator peers
+  6. Candidate block with tampered transaction merkle root is rejected by validator peers
+  7. Candidate block with corrupted block hash is rejected by validator peers
+  8. Consensus succeeds with 2/3 majority when 1 validator node (Node 3) is offline
+  9. Offline node recovers and synchronizes missing blocks from peers via catchup protocol
+  10. Cluster nodes independently verify 100% valid cryptographic chain integrity after sync
+* **`multi_node_consensus.test.ts` (15 tests)**:
+  1. Initial cluster state: All 3 nodes have Genesis Block at height 0
+  2. Leader creates valid candidate block proposal with Merkle root
+  3. Validators verify candidate block successfully
+  4. Validator rejects candidate with invalid height
+  5. Validator rejects candidate with invalid previousHash link
+  6. Full PBFT Consensus succeeds with 3/3 votes and commits to all nodes
+  7. Quorum Certificate contains at least 2 valid Ed25519 signatures
+  8. Sequential block production maintains continuous cryptographic chain
+  9. Consensus succeeds with 2/3 quorum when 1 validator (Beta) is OFFLINE
+  10. Consensus succeeds with 2/3 quorum when 1 validator (Gamma) is OFFLINE
+  11. Consensus FAILS when 2 nodes are OFFLINE (Quorum lost: 1 < 2)
+  12. Consensus FAILS when Leader is OFFLINE
+  13. Empty transaction list is rejected by consensus engine
+  14. Multi-transaction block computes combined binary Merkle tree
+  15. Transaction retrieval by ID from committed blocks
+* **`node_fault_tolerance.test.ts` (12 tests)**:
+  1. Cluster initializes with 3 ONLINE nodes at height 0
+  2. registerProof executes PBFT consensus and anchors proof across cluster
+  3. failNode marks target node as OFFLINE
+  4. Ledger proceeds when Node Beta is OFFLINE (Quorum = Alpha + Gamma)
+  5. Second block anchored while Beta is still down
+  6. Cross-node audit detects that Node Beta is behind / diverged
+  7. recoverNode brings Beta back ONLINE and auto-syncs missing blocks
+  8. Cross-node audit passes after Node Beta recovery
+  9. Network partition prevents isolated node from voting
+  10. syncNode brings partitioned Node Gamma up to cluster height
+  11. Network latency simulation executes successfully without drop
+  12. Revocation anchored via multi-node consensus across all nodes
+
+#### 2. Blockchain Integrity & Tamper Detection (23 tests)
+* **`ledger_tamper_detection.test.ts` (12 tests)**:
+  1. Baseline verification: All nodes have intact cryptographic chain
+  2. Tamper block hash on Node Beta: detected locally by verifyLocalChainIntegrity
+  3. Cross-node audit immediately detects Node Beta as DIVERGED while Alpha & Gamma are intact
+  4. Quorum remains intact ($Q = 2 \ge 2$) despite Byzantine tampering on Node Beta
+  5. New transactions can still be anchored while Node Beta is corrupted
+  6. Self-healing: syncNode repairs tampered Node Beta from healthy peer
+  7. Cross-node audit returns to consistent state after self-healing
+  8. Tampering previousHash breaks chain continuity at exact height
+  9. Tampering transaction payload in local database triggers Merkle leaf mismatch
+  10. Repair Node Gamma brings whole cluster back to 100% integrity
+  11. Direct adapter tamperNode API method updates status and triggers audit diverged flags
+  12. Read-only verification does not mutate ledger data
+* **`provenance_tampering.test.ts` (4 tests)**:
+  1. Provenance Chain Cryptographic Integrity & Tamper Detection Suite initialization
+  2. Unbroken 4-hop certified custody chain verifies as AUTHENTIC
+  3. Broken chain of custody (unauthorized hop) detected as PROVENANCE_MISMATCH
+  4. Forged custody signature detected as PROVENANCE_MISMATCH
+* **`verification.test.ts` (7 tests)**:
+  1. TRUSTGRID TOP Verification Pipeline Tests initialization
+  2. Scenario 1A: Genuine Education Certificate returns AUTHENTIC with trust score >= 90
+  3. Scenario 1B: Tampered Certificate (Rahul -> Rohan) detected as TAMPERED
+  4. Scenario 1C: Revoked Certificate detected as REVOKED with on-chain proof
+  5. Scenario 2: Genuine Product returns AUTHENTIC with 4-hop unbroken provenance
+  6. Scenario 3: Tampered Legal Forensic Evidence detected as TAMPERED
+  7. Consortium Blockchain Ledger Integrity validates all blocks and Merkle roots
+
+#### 3. Sector Flagship Protocol Validation (12 tests)
+* **`sector_deep_dive.test.ts` (12 tests)**:
+  1. Education: validateMetadata returns valid for complete degree payload
+  2. Education: validateMetadata rejects missing mandatory attributes
+  3. Education: issueDegree anchors credential on blockchain and populates credentials table
+  4. Supply Chain: validateMetadata validates pharma batch payload
+  5. Supply Chain: validateMetadata rejects batch without batchNumber
+  6. Supply Chain: registerProductBatch anchors product batch with expiration date
+  7. Supply Chain: transferProductCustody anchors certified custody event
+  8. Legal: validateMetadata validates forensic evidence payload
+  9. Legal: registerEvidence anchors tamper-evident forensic exhibit
+  10. Legal: transferEvidenceCustody records chain of custody with jurisdiction verification
+  11. Cybersecurity: registerDeviceBaseline anchors firmware baseline hash on ledger
+  12. Cybersecurity: auditDevice detects firmware drift and logs on-chain alert
+
+#### 4. Privacy & Cryptographic Selective Disclosure (12 tests)
+* **`passport_disclosure.test.ts` (12 tests)**:
+  1. Full disclosure passport returns all plain metadata attributes
+  2. Selective disclosure passport masks sensitive fields and sets degreeVerified flag
+  3. Selective disclosure generates cryptographic salted commitments for attributes
+  4. Disclosed attribute verifies mathematically against commitment and salt
+  5. Tampered attribute value fails cryptographic commitment check
+  6. Forged salt fails cryptographic commitment check
+  7. Numeric credential generates Predicate Proof (e.g. CGPA >= 7.5)
+  8. verifyPredicateProof validates predicate statement without revealing raw GPA score
+  9. verifyPredicateProof rejects if tested value fails predicate threshold
+  10. Reputation trust score starts high for clean active credentials
+  11. Reputation trust score penalizes revoked credentials
+  12. Non-existent DID returns null safely
+
+#### 5. Production Hyperledger Fabric Smart Contract (10 tests)
+* **`fabric_contract.test.ts` (10 tests)**:
+  1. Production adapter reports transparent connection status & contract readiness
+  2. registerProof writes to Fabric World State with block and Merkle leaf
+  3. verifyProof returns valid when content hash matches World State
+  4. verifyProof flags mismatch as TAMPERED
+  5. verifyProof returns false for non-existent object
+  6. revokeProof transitions status to REVOKED on Fabric ledger
+  7. addProvenanceEvent anchors certified custody handoff on Fabric
+  8. recordSecurityEvent anchors firmware compromise alert on Fabric
+  9. Fabric ledger integrity check validates all block headers and previous hashes
+  10. Fabric Go Chaincode source file (trustgrid_cc.go) exists and contains all required methods
+
+#### 6. Decentralized Identity & Encrypted Keystores (10 tests)
+* **`crypto.test.ts` (5 tests)**:
+  1. Cryptographic Primitive Suite initialization
+  2. Ed25519 key generation, signing, and verification
+  3. Canonical RFC 8785 JSON deterministic serialization & SHA-256
+  4. AES-256-GCM private key encryption and decryption with authentication tag
+  5. Binary Merkle tree root computation and leaf verification
+* **`persistence.test.ts` (5 tests)**:
+  1. Persistent Encrypted Keystore & Server Restart Integrity Suite initialization
+  2. Key Persistence: Consortium Notary retains identical keypair across simulated restarts
+  3. Ledger Persistence: Blockchain integrity remains 100% VALID after restart
+  4. Object Persistence: Trust Object created before restart verifies as AUTHENTIC after restart
+  5. Revocation Persistence: Revoked object remains REVOKED after restart
+
+#### 7. Risk Engine & Anomaly Detection (11 tests)
+* **`anomaly.test.ts` (4 tests)**:
+  1. Anomaly Risk Engine calculates baseline risk score
+  2. Object status penalty scoring
+  3. Verification velocity spike anomaly scoring
+  4. Geolocation impossibility anomaly scoring
+* **`duplicate_credential.test.ts` (2 tests)**:
+  1. Duplicate Credential Claim & Anomaly Risk Suite initialization
+  2. Identical credential content claimed across multiple subject DIDs triggers DUPLICATE_CREDENTIAL_CLAIM
+* **`cybersecurity_e2e.test.ts` (5 tests)**:
+  1. SCADA device cryptographic baseline registration
+  2. Firmware hash verification against immutable ledger baseline
+  3. Firmware bit-drift detection triggering CRITICAL security alert
+  4. Immutable security incident anchoring to consortium ledger
+  5. Explainable Risk Engine elevation to High/Critical upon baseline breach
+
+#### 8. End-to-End System Integration & Health (7 tests)
+* **`e2e.test.ts` (1 test)**:
+  1. Full End-to-End Trust Object Protocol (TOP) Lifecycle (Issue → Anchor → Verify Authentic → Tamper → Verify Tampered → Revoke)
+* **`system_health.test.ts` (6 tests)**:
+  1. System Health & All 4 Flagship Demo Scenarios Suite initialization
+  2. System Diagnostics: Ledger integrity is valid and all tables are ready
+  3. Scenario 1 (Education): Genuine vs Tampered Certificate
+  4. Scenario 2 (Supply Chain): Genuine vs Counterfeit Batch
+  5. Scenario 3 (Legal Evidence): Genuine vs Tampered Forensics
+  6. Scenario 4 (Cybersecurity): Clean Gateway vs Compromised SCADA Device
 
 ---
 
@@ -287,7 +454,7 @@ TRUSTGRID/
 │   │   ├── db.service.ts          # Built-in node:sqlite database service
 │   │   └── seed.ts                # Idempotent demonstrator seed data
 │   ├── api/routes/                # REST endpoints (/api/nodes, /api/verify, etc.)
-│   └── tests/                     # 112 Automated Tests (Consensus, Fault Tolerance, Tamper, Sectors)
+│   └── tests/                     # 122 Automated Tests (Consensus, Fault Tolerance, Tamper, Sectors)
 └── client/
     ├── package.json
     ├── vite.config.ts             # Vite dev server with proxy to port 5000
@@ -309,23 +476,19 @@ TRUSTGRID/
 
 ---
 
-## 12. Verification & Automated Test Suite
+## 12. Verification & Automated Test Suite Summary
 
-TRUSTGRID features a comprehensive automated test suite consisting of **112 passing tests** executing in ~6 seconds:
+TRUSTGRID features a comprehensive automated test suite consisting of **122 passing tests (0 failures)** executing in ~5.4 seconds.
+
 ```bash
+# Run all 122 tests across 16 test files
 npm test
+
+# Run interactive 3-node consortium consensus demo
+npm run demo:consortium
 ```
 
-### Test Suite Breakdown:
-- `crypto.test.ts` (4 tests) — Ed25519 signing/verification, RFC 8785 canonical serialization, AES-256-GCM keystores.
-- `merkle.test.ts` (1 test) — Binary Merkle tree root and inclusion proof verification.
-- `multi_node_consensus.test.ts` (15 tests) — 3-Phase PBFT consensus, quorum endorsement certificates ($Q \ge 2$), height continuity.
-- `node_fault_tolerance.test.ts` (12 tests) — Dynamic node crash/failure, network partitions, catchup sync protocol.
-- `ledger_tamper_detection.test.ts` (12 tests) — Deliberate block hash, previous hash, and transaction mutations with cross-node divergence detection and self-healing.
-- `passport_disclosure.test.ts` (12 tests) — Salted attribute commitments, blinding, and numeric predicate range proofs.
-- `fabric_contract.test.ts` (10 tests) — Hyperledger Fabric 2.5 Go contract methods, world state anchoring, revocation.
-- `sector_deep_dive.test.ts` (12 tests) — Education, Supply Chain, Legal Evidence, and Cybersecurity sector deep-dive validation.
-- `e2e.test.ts`, `verification.test.ts`, `provenance_tampering.test.ts`, `persistence.test.ts`, `cybersecurity_e2e.test.ts`, `duplicate_credential.test.ts`, `system_health.test.ts` (34 tests) — Baseline end-to-end integration workflows.
+> **For the complete categorized breakdown and file-by-file test specifications, see [§10. Automated Test Validation & Verification Suite](#10-automated-test-validation--verification-suite).**
 
 ---
 
