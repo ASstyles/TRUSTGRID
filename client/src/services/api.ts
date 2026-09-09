@@ -247,4 +247,75 @@ export const api = {
     const res = await fetch(`${API_BASE}/health`);
     return res.json();
   },
+
+  // Real 3-Node Consortium Network Status
+  getNetworkStatus: async (): Promise<NetworkStatusResponse> => {
+    const res = await fetch(`${API_BASE}/network/status`);
+    return res.json();
+  },
+  proposeDemoBlock: async (payload?: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/network/propose-demo-block`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+    return res.json();
+  },
+  toggleNetworkNode: async (nodeId: string, status?: string) => {
+    const res = await fetch(`${API_BASE}/network/nodes/${nodeId}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    return res.json();
+  },
+  syncNetworkNode: async (nodeId: string) => {
+    const res = await fetch(`${API_BASE}/network/nodes/${nodeId}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: true }),
+    });
+    return res.json();
+  },
 };
+
+export interface NetworkNodeInfo {
+  id: 'alpha' | 'beta' | 'gamma';
+  nodeId: string;
+  name: string;
+  role: 'PROPOSER' | 'VALIDATOR';
+  port: number;
+  status: 'ONLINE' | 'OFFLINE';
+  blockHeight: number | null;
+  latestBlockHash: string | null;
+  previousHash: string | null;
+  lastSeen: string | null;
+  did: string | null;
+  publicKey: string | null;
+  peersCount: number;
+  responseTimeMs: number | null;
+  error?: string;
+}
+
+export interface NetworkQuorumInfo {
+  required: number;
+  total: number;
+  available: number;
+  hasQuorum: boolean;
+}
+
+export interface NetworkStatusResponse {
+  success: boolean;
+  network: {
+    status: 'HEALTHY' | 'DEGRADED' | 'QUORUM_LOST';
+    quorum: NetworkQuorumInfo;
+    consensus: 'READY' | 'SYNCING' | 'NO_QUORUM';
+    latestHeight: number | null;
+    latestBlockHash: string | null;
+    converged: boolean;
+    clusterTopology: string;
+    timestamp: string;
+  };
+  nodes: NetworkNodeInfo[];
+  error?: string;
+}

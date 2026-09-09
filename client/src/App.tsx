@@ -8,6 +8,7 @@ import { SupplyChainPage } from './pages/SupplyChainPage';
 import { LegalPage } from './pages/LegalPage';
 import { CybersecurityPage } from './pages/CybersecurityPage';
 import { BlockchainExplorerPage } from './pages/BlockchainExplorerPage';
+import { NetworkStatusPage } from './pages/NetworkStatusPage';
 import { RiskDashboardPage } from './pages/RiskDashboardPage';
 import { TrustGraphView } from './components/TrustGraphView';
 import { TrustPassportCard } from './components/TrustPassportCard';
@@ -59,6 +60,7 @@ export const App: React.FC = () => {
         {currentTab === 'graph' && <TrustGraphView />}
         {currentTab === 'passport' && <TrustPassportCard />}
         {currentTab === 'blockchain' && <BlockchainExplorerPage />}
+        {currentTab === 'network' && <NetworkStatusPage />}
         {currentTab === 'risk' && <RiskDashboardPage />}
       </main>
 

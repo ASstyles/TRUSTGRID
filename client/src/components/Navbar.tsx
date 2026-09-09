@@ -11,6 +11,7 @@ import {
   Cpu, 
   Activity, 
   Layers,
+  Server,
   UserCircle2
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, current
     { id: 'graph', label: 'Trust Graph', icon: <Network size={16} /> },
     { id: 'passport', label: 'Trust Passport', icon: <CreditCard size={16} /> },
     { id: 'blockchain', label: 'Ledger Explorer', icon: <Layers size={16} /> },
+    { id: 'network', label: 'Network Status', icon: <Server size={16} /> },
     { id: 'risk', label: 'Risk Engine', icon: <Activity size={16} /> },
   ];
 
