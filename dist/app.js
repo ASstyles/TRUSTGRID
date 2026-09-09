@@ -37,6 +37,7 @@ const risk_routes_js_1 = require("./api/routes/risk.routes.js");
 const identity_routes_js_1 = require("./api/routes/identity.routes.js");
 const demo_routes_js_1 = require("./api/routes/demo.routes.js");
 const node_routes_js_1 = require("./api/routes/node.routes.js");
+const network_routes_js_1 = require("./api/routes/network.routes.js");
 function createApp() {
     const app = (0, express_1.default)();
     // Core Services
@@ -153,6 +154,7 @@ function createApp() {
     app.use('/api/cybersecurity', (0, cybersecurity_routes_js_1.createCybersecurityRoutes)(secModule, db));
     app.use('/api/blockchain', (0, blockchain_routes_js_1.createBlockchainRoutes)(blockchain, db));
     app.use('/api/nodes', (0, node_routes_js_1.createNodeRoutes)(multiNodeAdapter));
+    app.use('/api/network', (0, network_routes_js_1.createNetworkRoutes)());
     app.use('/api/graph', (0, graph_routes_js_1.createGraphRoutes)(graphService));
     app.use('/api/passport', (0, passport_routes_js_1.createPassportRoutes)(passportService));
     app.use('/api/risk', (0, risk_routes_js_1.createRiskRoutes)(db));
