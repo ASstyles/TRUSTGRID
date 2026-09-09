@@ -14,6 +14,11 @@ test('Persistent Encrypted Keystore & Server Restart Integrity Suite', async (t)
   const db = DatabaseService.getInstance();
   const didService = new DidService(db);
 
+  const issuerDid = 'did:trustgrid:edu:delhi-tech-univ';
+  const studentDid = 'did:trustgrid:usr:rahul-sharma';
+  WalletService.registerDeterministicIdentity(issuerDid, 'ORGANIZATION', db);
+  WalletService.registerDeterministicIdentity(studentDid, 'INDIVIDUAL', db);
+
   await t.test('1. Key Persistence: Consortium Notary retains identical keypair across simulated restarts', async () => {
     const notaryDid = 'did:trustgrid:sys:consortium-notary';
 

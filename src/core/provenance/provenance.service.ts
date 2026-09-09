@@ -117,16 +117,21 @@ export class ProvenanceService {
       // 3. Cryptographic Signature Validation on custody transitions
       if (curr.eventType === 'TRANSFER' && curr.signature && curr.fromDid) {
         const fromPubKey = this.didService.getPublicKey(curr.fromDid);
-        if (fromPubKey) {
-          const signPayload = `${curr.trustObjectId}-${curr.fromDid}->${curr.toDid}-${curr.timestamp}`;
-          const signatureValid = CryptoService.verify(signPayload, curr.signature, fromPubKey);
-          if (!signatureValid) {
-            return {
-              isValid: false,
-              brokenIndex: i,
-              reason: `Invalid cryptographic signature on custody transition ${i} from ${curr.fromDid}`,
-            };
-          }
+        if (!fromPubKey) {
+          return {
+            isValid: false,
+            brokenIndex: i,
+            reason: `Invalid cryptographic signature: Signer public key not found for custody transition ${i} from ${curr.fromDid}`,
+          };
+        }
+        const signPayload = `${curr.trustObjectId}-${curr.fromDid}->${curr.toDid}-${curr.timestamp}`;
+        const signatureValid = CryptoService.verify(signPayload, curr.signature, fromPubKey);
+        if (!signatureValid) {
+          return {
+            isValid: false,
+            brokenIndex: i,
+            reason: `Invalid cryptographic signature on custody transition ${i} from ${curr.fromDid}`,
+          };
         }
       }
     }

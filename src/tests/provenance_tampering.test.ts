@@ -35,6 +35,12 @@ test('Provenance Chain Cryptographic Integrity & Tamper Detection Suite', async 
   const warehouseDid = 'did:trustgrid:sc:delhi-central-hub';
   const retailDid = 'did:trustgrid:sc:medlife-retail';
 
+  // Ensure test identities and wallet keystores are deterministically registered
+  WalletService.registerDeterministicIdentity(mfgDid, 'ORGANIZATION', db);
+  WalletService.registerDeterministicIdentity(distDid, 'ORGANIZATION', db);
+  WalletService.registerDeterministicIdentity(warehouseDid, 'ORGANIZATION', db);
+  WalletService.registerDeterministicIdentity(retailDid, 'ORGANIZATION', db);
+
   await t.test('1. Unbroken 4-hop certified custody chain verifies as AUTHENTIC', async () => {
     const product = await trustObjectService.createTrustObject({
       objectType: 'PRODUCT',

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseService } from '../database/db.service.js';
 import { ConsortiumBlockchainAdapter } from '../core/blockchain/consortium-blockchain.adapter.js';
 import { DidService } from '../core/identity/did.service.js';
+import { WalletService } from '../core/identity/wallet.service.js';
 import { TrustObjectService } from '../core/trust-object/trust-object.service.js';
 import { ProvenanceService } from '../core/provenance/provenance.service.js';
 import { RevocationService } from '../core/revocation/revocation.service.js';
@@ -31,6 +32,7 @@ test('Cybersecurity E2E & On-Chain Security Alert Suite', async (t) => {
   );
 
   const adminDid = 'did:trustgrid:sec:ciso-admin';
+  WalletService.registerDeterministicIdentity(adminDid, 'INDIVIDUAL', db);
   const deviceCustomId = `TO-DEV-SCADA-${Date.now()}`;
   const baselineConfigHash = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
 

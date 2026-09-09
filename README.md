@@ -238,7 +238,7 @@ npm --prefix client install
 # 3. Seed database with 4 Flagship Scenarios
 npm run seed
 
-# 4. Run automated test suite (122 tests • 0 failed)
+# 4. Run automated test suite (132 automated test assertions • 0 failed)
 npm test
 
 # 5. Launch unified server
@@ -260,17 +260,20 @@ npm run dev
 docker compose up --build
 ```
 
-### Option D: Local 3-Node Consortium Consensus Demo & Verification Benchmark
+### Option D: Local 3-Node Consortium Consensus Demo, Network Status & Benchmark
 ```bash
 # 1. Run the interactive 3-node consortium consensus and fault tolerance demo
 npm run demo:consortium
 
 # 2. (Optional) Run the 3 independent node daemons in separate terminal windows:
-npm run node:1   # Node Alpha on port 4101
-npm run node:2   # Node Beta on port 4102
-npm run node:3   # Node Gamma on port 4103
+npm run node:1   # Node Alpha on port 4101 (Proposer)
+npm run node:2   # Node Beta on port 4102 (Validator)
+npm run node:3   # Node Gamma on port 4103 (Validator)
 
-# 3. Run the 100-iteration cryptographic verification latency benchmark
+# 3. View the live Network Status dashboard:
+# Navigate to http://localhost:5000/network or query GET /api/network/status
+
+# 4. Run the 100-iteration cryptographic verification latency benchmark
 npm run benchmark
 ```
 
@@ -280,12 +283,12 @@ npm run benchmark
 
 ```
 ================================================================================
-TEST VALIDATION: 122 tests • 0 failed | 122 passing | 0 failing | 7 test suites
-Execution Time: ~5.4s (via npm test / tsx --test --test-concurrency=1 src/tests/*.test.ts)
+TEST VALIDATION: 132 tests • 0 failed | 132 passing | 0 failing | 9 test categories (17 files)
+Execution Time: ~5.7s (via npm test / tsx --test --test-concurrency=1 src/tests/*.test.ts)
 ================================================================================
 ```
 
-TRUSTGRID features a comprehensive automated test suite of **122 tests • 0 failed** (122 passing, 0 failing across 7 test suites) covering all protocol invariants, consensus mechanisms, tamper detection, sector modules, and cryptographic defenses. Every test executes without mocking the core cryptography or SQLite database engine.
+TRUSTGRID features a comprehensive automated test suite of **132 automated test assertions • 0 failed** (132 passing, 0 failing across 9 test categories / 17 test files) covering all protocol invariants, 3-node consortium consensus, live network status and quorum monitoring, tamper detection, sector modules, and cryptographic defenses. Every test executes against authentic cryptographic implementations without mocking the core cryptography or SQLite database engine.
 
 ```bash
 npm test
@@ -298,14 +301,14 @@ Measured on full end-to-end cryptographic Trust Object verification pipeline (Ed
 | Benchmark Metric | Verified Result |
 |---|---|
 | **Iterations** | 100 |
-| **Total Test Time** | 81.84 ms |
-| **Throughput** | 1221.9 ops/sec |
-| **Mean Latency** | 0.818 ms |
-| **Median Latency (p50)** | 0.744 ms |
-| **Min Latency** | 0.512 ms |
-| **Max Latency** | 1.519 ms |
-| **95th Percentile (p95)** | 1.273 ms |
-| **99th Percentile (p99)** | 1.519 ms |
+| **Total Test Time** | 76.50 ms |
+| **Throughput** | 1307.3 ops/sec |
+| **Mean Latency** | 0.765 ms |
+| **Median Latency (p50)** | 0.658 ms |
+| **Min Latency** | 0.475 ms |
+| **Max Latency** | 3.787 ms |
+| **95th Percentile (p95)** | 1.286 ms |
+| **99th Percentile (p99)** | 3.787 ms |
 
 Run locally via:
 ```bash
@@ -550,8 +553,8 @@ TRUSTGRID/
 │   │   ├── schema.sql             # Relational DDL & schema migrations
 │   │   ├── db.service.ts          # Built-in node:sqlite database service
 │   │   └── seed.ts                # Idempotent demonstrator seed data
-│   ├── api/routes/                # REST endpoints (/api/nodes, /api/verify, etc.)
-│   └── tests/                     # 122 Automated Tests (Consensus, Fault Tolerance, Tamper, Sectors)
+│   ├── api/routes/                # REST endpoints (/api/nodes, /api/network/status, /api/verify, etc.)
+│   └── tests/                     # 132 Automated Tests (Consensus, Quorum, Fault Tolerance, Tamper, Sectors)
 └── client/
     ├── package.json
     ├── vite.config.ts             # Vite dev server with proxy to port 5000
@@ -560,12 +563,13 @@ TRUSTGRID/
         ├── App.tsx                # Master UI router and cyber layout
         ├── index.css              # Custom dark-mode cybersecurity design system
         ├── components/
-        │   ├── Navbar.tsx         # Sector navigation & role switcher
+        │   ├── Navbar.tsx         # Sector navigation, network status & role switcher
         │   ├── DemoBanner.tsx     # SIH 1-click flagship scenario buttons
         │   ├── HeroVerification.tsx # Signature UI with 7-point checklist & hash diff
         │   ├── TrustGraphView.tsx # Interactive SVG node-link graph
         │   └── TrustPassportCard.tsx # Privacy-preserving passport viewer
         ├── pages/
+        │   ├── NetworkStatusPage.tsx # Real-time 3-Node Consortium Health & Quorum Monitor
         │   ├── BlockchainExplorerPage.tsx # Multi-Node PBFT Visualizer & Node Control Panel
         │   └── ...                # Sector & audit views
         └── services/api.ts        # Frontend REST API client
@@ -575,10 +579,10 @@ TRUSTGRID/
 
 ## 12. Verification & Automated Test Suite Summary
 
-TRUSTGRID features a comprehensive automated test suite consisting of **122 tests • 0 failed** (122 passing, 0 failing, 7 test suites) executing in ~5.4 seconds.
+TRUSTGRID features a comprehensive automated test suite consisting of **132 automated test assertions • 0 failed** (132 passing, 0 failing across 9 test categories / 17 test files) executing in ~5.7 seconds.
 
 ```bash
-# Run all verified tests (122 tests • 0 failed)
+# Run all verified tests (132 tests • 0 failed)
 npm test
 
 # Run interactive 3-node consortium consensus demo

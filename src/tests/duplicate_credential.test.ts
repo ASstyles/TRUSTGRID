@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseService } from '../database/db.service.js';
 import { ConsortiumBlockchainAdapter } from '../core/blockchain/consortium-blockchain.adapter.js';
 import { DidService } from '../core/identity/did.service.js';
+import { WalletService } from '../core/identity/wallet.service.js';
 import { TrustObjectService } from '../core/trust-object/trust-object.service.js';
 import { ProvenanceService } from '../core/provenance/provenance.service.js';
 import { RevocationService } from '../core/revocation/revocation.service.js';
@@ -32,7 +33,8 @@ test('Duplicate Credential Claim & Anomaly Risk Suite', async (t) => {
   const studentA = 'did:trustgrid:usr:student-alpha';
   const studentB = 'did:trustgrid:usr:student-bravo';
 
-  // Ensure both student identities exist
+  // Ensure issuer and student identities exist
+  WalletService.registerDeterministicIdentity(uniDid, 'ORGANIZATION', db);
   didService.createIdentity({ sector: 'usr', identifier: 'student-alpha', entityType: 'INDIVIDUAL' });
   didService.createIdentity({ sector: 'usr', identifier: 'student-bravo', entityType: 'INDIVIDUAL' });
 
